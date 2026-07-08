@@ -1,11 +1,17 @@
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import TelemetryPanel from './components/TelemetryPanel';
 import DriverScore from './components/DriverScore';
 import AlertsFeed from './components/AlertsFeed';
 import FuelMileageCard from './components/FuelMileageCard';
 import CostComparison from './components/CostComparison';
 import StatusBar from './components/StatusBar';
+import LandingPage from './LandingPage';
+import LoginPage from './LoginPage';
 
-export default function App() {
+function Dashboard() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4">
@@ -18,9 +24,21 @@ export default function App() {
                 Mocked live telemetry from ESP32 + OBD-II + BLE + Cloud AI, tuned to feel like an active vehicle monitoring stream.
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-              <div className="font-semibold">Fleet status</div>
-              <div className="mt-1 text-emerald-200">All modules synchronized</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                <div className="font-semibold">Fleet status</div>
+                <div className="mt-1 text-emerald-200">All modules synchronized</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.removeItem('velociq_logged_in');
+                  navigate('/');
+                }}
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-rose-400 hover:text-rose-300"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>
@@ -41,5 +59,57 @@ export default function App() {
         <CostComparison />
       </div>
     </div>
+  );
+}
+
+function ProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') === 'true');
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') === 'true');
+    };
+
+    window.addEventListener('storage', syncAuthState);
+    return () => window.removeEventListener('storage', syncAuthState);
+  }, []);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') === 'true');
+
+  const handleLogin = () => {
+    sessionStorage.setItem('velociq_logged_in', 'true');
+    setIsAuthenticated(true);
+  };
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') === 'true');
+    };
+
+    window.addEventListener('storage', syncAuthState);
+    return () => window.removeEventListener('storage', syncAuthState);
+  }, []);
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
