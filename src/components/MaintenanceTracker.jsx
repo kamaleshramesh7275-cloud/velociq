@@ -7,7 +7,9 @@ const statusConfig = {
   coolant: { name: 'Coolant Fluid Quality', desc: 'Impacted by peak temperature workloads.' }
 };
 
-export default function MaintenanceTracker({ partsWear, onServicePart }) {
+export default function MaintenanceTracker({ partsWear, onServicePart, maintenanceModel }) {
+  const { trained, accuracy, type } = maintenanceModel || { trained: false, accuracy: 50, type: 'None' };
+
   const getStatusColor = (val) => {
     if (val >= 70) return 'from-emerald-400 to-teal-500 text-emerald-300 border-emerald-500/20';
     if (val >= 20) return 'from-amber-400 to-orange-500 text-amber-300 border-amber-500/20';
@@ -22,9 +24,18 @@ export default function MaintenanceTracker({ partsWear, onServicePart }) {
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
-      <div className="mb-4">
-        <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Diagnostics</p>
-        <h2 className="text-xl font-semibold text-white">Parts Wear & Lifecycles</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Diagnostics</p>
+          <h2 className="text-xl font-semibold text-white">Parts Wear & Lifecycles</h2>
+        </div>
+        <span className={`text-[10px] font-mono font-semibold uppercase px-2.5 py-1 rounded-full border ${
+          trained 
+            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' 
+            : 'border-slate-800 bg-slate-950 text-slate-500'
+        }`}>
+          {trained ? `AI Forecast: Active (${accuracy.toFixed(0)}%)` : 'AI: Untrained (50%)'}
+        </span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

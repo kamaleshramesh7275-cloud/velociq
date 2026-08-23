@@ -15,6 +15,7 @@ import TripLogger from './components/TripLogger';
 import MaintenanceTracker from './components/MaintenanceTracker';
 import RouteTracker from './components/RouteTracker';
 import CostSavingsCalculator from './components/CostSavingsCalculator';
+import AIModelTuner from './components/AIModelTuner';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -26,6 +27,14 @@ function Dashboard() {
   const [activeDTCs, setActiveDTCs] = useState(['P0300', 'P0171']);
   const [spiffsCount, setSpiffsCount] = useState(30);
   const [fuelPrice, setFuelPrice] = useState(95);
+
+  // AI Model States
+  const [modelState, setModelState] = useState({
+    driver: { trained: false, accuracy: 50, isErratic: false, history: [], lr: 0.01, epochs: 20, type: 'Neural Network' },
+    maintenance: { trained: false, accuracy: 50, isErratic: false, history: [], lr: 0.01, epochs: 20, type: 'Neural Network' },
+    fuel: { trained: false, accuracy: 50, isErratic: false, history: [], lr: 0.01, epochs: 20, type: 'Neural Network' }
+  });
+  const [aiAgentOptimized, setAiAgentOptimized] = useState(false);
 
   // Trip History log
   const [tripHistory, setTripHistory] = useState(() => {
@@ -100,8 +109,16 @@ function Dashboard() {
           fuelBurn = 0.028;
         }
 
-        // Simulate Speed
-        const speedDelta = (Math.random() - 0.45) * 6;
+        // Apply AI Agent optimization tweaks (Tuned Agent results in 15% fuel efficiency)
+        if (aiAgentOptimized) {
+          fuelBurn = fuelBurn * 0.85;
+        }
+
+        // Simulate Speed (AI Agent Cruise Control makes throttle adjustments smoother)
+        let speedDelta = (Math.random() - 0.45) * 6;
+        if (aiAgentOptimized) {
+          speedDelta = (Math.random() - 0.45) * 2.5; // smoother driving
+        }
         const newSpeed = Math.max(0, Math.min(maxSpeed, prev.speed + speedDelta));
 
         // Correlate RPM to Speed
@@ -241,7 +258,7 @@ function Dashboard() {
     }, 300);
 
     return () => clearInterval(interval);
-  }, [isConnected, vehicleProfile, speedLimit]);
+  }, [isConnected, vehicleProfile, speedLimit, aiAgentOptimized]);
 
   const handleClearDTCs = () => {
     setActiveDTCs([]);
@@ -304,6 +321,13 @@ function Dashboard() {
     }));
   };
 
+  const handleTrainingComplete = (modelKey, trainedData) => {
+    setModelState((prev) => ({
+      ...prev,
+      [modelKey]: trainedData
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4">
@@ -344,15 +368,21 @@ function Dashboard() {
             <TelemetryPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} />
             <div className="grid gap-4 md:grid-cols-2">
               <FuelMileageCard telemetry={telemetry} />
-              <CostSavingsCalculator fuelUsed={telemetry.activeFuelUsed} fuelPrice={fuelPrice} setFuelPrice={setFuelPrice} />
+              <CostSavingsCalculator fuelUsed={telemetry.activeFuelUsed} fuelPrice={fuelPrice} setFuelPrice={setFuelPrice} aiAgentOptimized={aiAgentOptimized} />
             </div>
             <RouteTracker route={telemetry.route} speed={telemetry.speed} />
+            <AIModelTuner 
+              modelState={modelState} 
+              onTrainingComplete={handleTrainingComplete} 
+              aiAgentOptimized={aiAgentOptimized} 
+              onToggleAIAgent={() => setAiAgentOptimized(!aiAgentOptimized)} 
+            />
             <ECUDiagnostics activeDTCs={activeDTCs} onClearDTCs={handleClearDTCs} onTriggerDTC={handleTriggerDTC} />
           </div>
           <div className="flex flex-col gap-4">
             <DriverScore telemetry={telemetry} />
-            <AICoachingPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} />
-            <MaintenanceTracker partsWear={telemetry.partsWear} onServicePart={handleServicePart} />
+            <AICoachingPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} driverModel={modelState.driver} />
+            <MaintenanceTracker partsWear={telemetry.partsWear} onServicePart={handleServicePart} maintenanceModel={modelState.maintenance} />
             <TripLogger 
               tripHistory={tripHistory} 
               onEndTrip={handleEndTrip} 
