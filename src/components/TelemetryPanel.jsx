@@ -1,33 +1,101 @@
 import React, { useMemo } from 'react';
 
 const gaugeConfig = [
-  { key: 'speed', label: 'Vehicle Speed', unit: 'km/h', range: [0, 120], color: 'from-cyan-400 to-sky-500' },
-  { key: 'rpm', label: 'Engine RPM', unit: '', range: [700, 6000], color: 'from-fuchsia-500 to-violet-600' },
-  { key: 'coolant', label: 'Coolant Temp', unit: '°C', range: [70, 110], color: 'from-amber-400 to-orange-500' },
-  { key: 'maf', label: 'MAF Air Flow', unit: 'g/s', range: [2, 25], color: 'from-emerald-400 to-lime-500' },
-  { key: 'fuel', label: 'Fuel Level', unit: '%', range: [0, 100], color: 'from-rose-400 to-red-500' },
+  { key: 'speed', label: 'Vehicle Speed', unit: 'km/h', range: [0, 120], colorClass: 'text-cyan-400', glowClass: 'shadow-cyan-500/20' },
+  { key: 'rpm', label: 'Engine RPM', unit: '', range: [700, 6000], colorClass: 'text-fuchsia-500', glowClass: 'shadow-fuchsia-500/20' },
+  { key: 'coolant', label: 'Coolant Temp', unit: '°C', range: [70, 110], colorClass: 'text-amber-500', glowClass: 'shadow-amber-500/20' },
+  { key: 'maf', label: 'MAF Air Flow', unit: 'g/s', range: [2, 25], colorClass: 'text-emerald-400', glowClass: 'shadow-emerald-500/20' },
+  { key: 'fuel', label: 'Fuel Level', unit: '%', range: [0, 100], colorClass: 'text-rose-500', glowClass: 'shadow-rose-500/20' },
 ];
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// Circular Gauge Component
+function CircularGauge({ percent, label, value, unit, colorClass, isAlert, glowClass }) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  // Make it a 3/4 circle (gauge style)
+  const strokeDasharray = `${circumference * 0.75} ${circumference * 0.25}`;
+  const strokeDashoffset = circumference * 0.75 - (percent / 100) * (circumference * 0.75);
+
+  return (
+    <div className={`relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/70 p-6 ${isAlert ? 'border-rose-500/50 shadow-lg shadow-rose-500/20' : ''}`}>
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] font-bold border ${
+          isAlert 
+            ? 'bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse' 
+            : 'bg-slate-800/50 text-slate-500 border-slate-700/30'
+        }`}>
+          {isAlert ? 'Alert' : 'Nominal'}
+        </span>
+      </div>
+
+      <div className="relative mt-8 flex items-center justify-center">
+        {/* Background Track */}
+        <svg className="w-36 h-36 -rotate-[-135deg] transform" viewBox="0 0 128 128">
+          <circle
+            cx="64"
+            cy="64"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="12"
+            className="text-slate-800"
+            strokeDasharray={strokeDasharray}
+            strokeLinecap="round"
+          />
+          {/* Active Progress */}
+          <circle
+            cx="64"
+            cy="64"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="12"
+            className={`${isAlert ? 'text-rose-500' : colorClass} transition-all duration-300 ease-out`}
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            style={{ 
+              filter: `drop-shadow(0 0 8px currentColor)`
+            }}
+          />
+        </svg>
+
+        {/* Center Text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-3xl font-extrabold tracking-tight ${isAlert ? 'text-rose-400 animate-pulse' : 'text-white'}`}>
+            {value}
+          </span>
+          <span className="text-xs font-medium text-slate-500">{unit}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TelemetryPanel({ telemetry, isConnected, speedLimit }) {
   const gauges = useMemo(() =>
     gaugeConfig.map((gauge) => {
-      const value = telemetry[gauge.key] ?? 0;
+      const rawValue = telemetry[gauge.key] ?? 0;
       const [min, max] = gauge.range;
-      const normalized = (value - min) / (max - min);
+      const normalized = (rawValue - min) / (max - min);
       const percent = clamp(Math.round(normalized * 100), 0, 100);
       
-      // Dynamic alert triggers
       const isAlert = 
-        gauge.key === 'coolant' ? value > 102 : 
-        gauge.key === 'fuel' ? value < 15 : 
-        gauge.key === 'speed' ? value > speedLimit : 
+        gauge.key === 'coolant' ? rawValue > 102 : 
+        gauge.key === 'fuel' ? rawValue < 15 : 
+        gauge.key === 'speed' ? rawValue > speedLimit : 
         false;
 
-      return { ...gauge, value, percent, isAlert };
+      const formattedValue = gauge.key === 'rpm' 
+        ? Math.round(rawValue).toLocaleString() 
+        : rawValue.toFixed(gauge.key === 'speed' || gauge.key === 'maf' || gauge.key === 'fuel' ? 1 : 0);
+
+      return { ...gauge, value: formattedValue, percent, isAlert };
     }),
     [telemetry, speedLimit]
   );
@@ -61,39 +129,9 @@ export default function TelemetryPanel({ telemetry, isConnected, speedLimit }) {
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {gauges.map((gauge) => (
-            <div key={gauge.key} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-300">{gauge.label}</p>
-                <span className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.25em] font-semibold border ${
-                  gauge.isAlert 
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' 
-                    : 'bg-slate-800 text-slate-400 border-slate-700/30'
-                }`}>
-                  {gauge.isAlert ? 'Alert' : 'Nominal'}
-                </span>
-              </div>
-              <div className="relative h-32 overflow-hidden rounded-2xl bg-slate-900/70">
-                <div className={`absolute inset-0 bg-gradient-to-r ${gauge.color} opacity-20`} />
-                <div className="absolute bottom-0 left-0 h-full w-full rounded-t-2xl border-t border-white/10" />
-                <div className="absolute bottom-0 left-0 h-[calc(100%-12px)] w-full">
-                  <div className={`absolute bottom-0 left-0 rounded-t-2xl bg-gradient-to-r ${gauge.color}`} style={{ width: `${gauge.percent}%`, height: '100%' }} />
-                </div>
-                <div className="absolute inset-0 flex flex-col justify-end p-4">
-                  <div className={`text-3xl font-bold tracking-tight transition-colors duration-200 ${gauge.isAlert && gauge.key === 'speed' ? 'text-rose-400' : 'text-white'}`}>
-                    {gauge.key === 'rpm' 
-                      ? Math.round(gauge.value).toLocaleString() 
-                      : gauge.value.toFixed(gauge.key === 'speed' || gauge.key === 'maf' || gauge.key === 'fuel' ? 1 : 0)
-                    }
-                    <span className="ml-1 text-sm font-normal text-slate-400">{gauge.unit}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800">
-                    <div className={`h-1.5 rounded-full bg-gradient-to-r ${gauge.color}`} style={{ width: `${gauge.percent}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CircularGauge key={gauge.key} {...gauge} />
           ))}
         </div>
       </div>

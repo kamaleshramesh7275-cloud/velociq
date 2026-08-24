@@ -14,7 +14,7 @@ const gradeColors = {
   D: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
 };
 
-export default function DriverScore({ telemetry }) {
+export default function DriverScore({ telemetry, driver }) {
   const { score, events } = telemetry;
   
   const grade = useMemo(() => gradeFromScore(Math.round(score)), [score]);
@@ -30,6 +30,24 @@ export default function DriverScore({ telemetry }) {
           Grade {grade}
         </div>
       </div>
+
+      {driver && (
+        <div className="mt-6 flex items-center gap-4 rounded-2xl bg-slate-950/50 p-4 border border-slate-800/50">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-lg font-bold text-cyan-400 border border-cyan-500/30">
+            {driver.avatar}
+          </div>
+          <div className="flex flex-1 items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">{driver.name}</p>
+              <p className="text-xs text-slate-400">{driver.license} • Exp: {driver.experience}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Global Rating</p>
+              <p className="text-sm font-semibold text-emerald-400">{driver.rating} ⭐</p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
         <div className="flex items-end justify-between">

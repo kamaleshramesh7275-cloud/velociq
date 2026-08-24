@@ -1,28 +1,27 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import TelemetryPanel from './components/TelemetryPanel';
-import DriverScore from './components/DriverScore';
-import AlertsFeed from './components/AlertsFeed';
-import FuelMileageCard from './components/FuelMileageCard';
-import CostComparison from './components/CostComparison';
-import StatusBar from './components/StatusBar';
+import React, { useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { SimulationContext } from './context/SimulationContext';
+import { FleetProvider, useFleet } from './context/FleetContext';
+import FleetManager from './pages/FleetManager';
+import Sidebar from './components/Sidebar';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import SimulationSettings from './components/SimulationSettings';
-import AICoachingPanel from './components/AICoachingPanel';
-import ECUDiagnostics from './components/ECUDiagnostics';
-import TripLogger from './components/TripLogger';
-import MaintenanceTracker from './components/MaintenanceTracker';
-import RouteTracker from './components/RouteTracker';
-import CostSavingsCalculator from './components/CostSavingsCalculator';
-import AIModelTuner from './components/AIModelTuner';
+import { GEOFENCE_COORDS } from './components/RouteTracker';
 
-function Dashboard() {
-  const navigate = useNavigate();
+import TelemetryPage from './pages/TelemetryPage';
+import NavigationPage from './pages/NavigationPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import MaintenancePage from './pages/MaintenancePage';
+import DriverSafetyPage from './pages/DriverSafetyPage';
+import SecurityPage from './pages/SecurityPage';
+
+function SimulationWrapper() {
+  const { activeVehicle, activeDriver } = useFleet();
+  const vehicleProfile = activeVehicle?.profile || 'sedan';
 
   // Configuration States
   const [isConnected, setIsConnected] = useState(true);
-  const [vehicleProfile, setVehicleProfile] = useState('sedan');
   const [speedLimit, setSpeedLimit] = useState(90);
   const [activeDTCs, setActiveDTCs] = useState(['P0300', 'P0171']);
   const [spiffsCount, setSpiffsCount] = useState(30);
@@ -36,6 +35,15 @@ function Dashboard() {
   });
   const [aiAgentOptimized, setAiAgentOptimized] = useState(false);
 
+  // New AI Agents States
+  const [aiNavigatorEnabled, setAiNavigatorEnabled] = useState(false);
+  const [aiMechanicEnabled, setAiMechanicEnabled] = useState(false);
+  const [aiThoughtLogs, setAiThoughtLogs] = useState([{ time: new Date().toLocaleTimeString(), message: 'System initialized.' }]);
+
+  // New States for Safety & Security
+  const [securityState, setSecurityState] = useState({ threatLevel: 'Secure', anomalies: [], isGeofenceBreached: false, isImmobilized: false });
+  const [safetyLog, setSafetyLog] = useState([]);
+
   // Trip History log
   const [tripHistory, setTripHistory] = useState(() => {
     try {
@@ -46,7 +54,10 @@ function Dashboard() {
     }
   });
 
-  // Telemetry Central State (with Phase 2 nested properties)
+  // Weather State
+  const [weather, setWeather] = useState(null);
+
+  // Telemetry Central State
   const [telemetry, setTelemetry] = useState({
     speed: 55.2,
     rpm: 2450,
@@ -62,6 +73,8 @@ function Dashboard() {
     activeDuration: 0,
     activeFuelUsed: 0,
     partsWear: { oil: 94.2, brakes: 88.5, battery: 98.1, coolant: 96.4 },
+    predictedFailureDays: { oil: 120, brakes: 90, battery: 400, coolant: 150 },
+    tripCoordinates: [],
     route: {
       progress: 0,
       lat: 28.6139,
@@ -80,18 +93,36 @@ function Dashboard() {
         setSpiffsCount((prev) => prev + 1);
       }, 2000);
     } else {
-      setSpiffsCount(0); // reset on reconnect (simulates syncing data back to cloud)
+      setSpiffsCount(0);
     }
     return () => clearInterval(spiffsInterval);
   }, [isConnected]);
 
+  // Weather Polling
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${telemetry.route.lat}&longitude=${telemetry.route.lon}&current_weather=true`);
+        const data = await res.json();
+        if (data && data.current_weather) {
+          setWeather(data.current_weather);
+        }
+      } catch (err) {
+        console.error("Failed to fetch weather", err);
+      }
+    };
+    
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Main Telemetry Simulator Loop
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || securityState.isImmobilized) return;
 
     const interval = setInterval(() => {
       setTelemetry((prev) => {
-        // Vehicle Profile Configs
         let maxSpeed = 120;
         let maxRpm = 5000;
         let maxMaf = 18;
@@ -109,38 +140,46 @@ function Dashboard() {
           fuelBurn = 0.028;
         }
 
-        // Apply AI Agent optimization tweaks (Tuned Agent results in 15% fuel efficiency)
         if (aiAgentOptimized) {
           fuelBurn = fuelBurn * 0.85;
         }
 
-        // Simulate Speed (AI Agent Cruise Control makes throttle adjustments smoother)
+        let isBadWeather = false;
+        if (weather) {
+           const code = weather.weathercode;
+           if (code >= 51 || code === 45 || code === 48) {
+             isBadWeather = true;
+           }
+        }
+
+        if (aiNavigatorEnabled && isBadWeather) {
+           maxSpeed = maxSpeed * 0.7; // AI slows down the car safely in bad weather
+        }
+
         let speedDelta = (Math.random() - 0.45) * 6;
         if (aiAgentOptimized) {
-          speedDelta = (Math.random() - 0.45) * 2.5; // smoother driving
+          speedDelta = (Math.random() - 0.45) * 2.5;
         }
+        if (aiNavigatorEnabled && isBadWeather && prev.speed > maxSpeed) {
+           speedDelta = -3.0; // AI applies gentle braking to reach safe speed
+        }
+
         const newSpeed = Math.max(0, Math.min(maxSpeed, prev.speed + speedDelta));
 
-        // Correlate RPM to Speed
         const targetRpm = newSpeed * 35 + 800 + (Math.random() - 0.5) * 200;
         const newRpm = Math.max(700, Math.min(maxRpm, targetRpm));
 
-        // Correlate Coolant Temp to RPM
         const coolantDelta = (newRpm > 3000 ? 0.3 : -0.1) + (Math.random() - 0.5) * 0.2;
         const newCoolant = Math.max(75, Math.min(108, prev.coolant + coolantDelta));
 
-        // Correlate MAF to RPM
         const targetMaf = (newRpm / 250) + (Math.random() - 0.5) * 1.2;
         const newMaf = Math.max(2, Math.min(maxMaf, targetMaf));
 
-        // Fuel reserve decrease
         const newFuel = Math.max(0, prev.fuel - fuelBurn);
 
-        // Alternator voltage (Line chart simulation)
         const newVoltage = 13.8 + Math.random() * 0.35;
         const newHistory = [...prev.history.slice(-7), { name: `${prev.history.length + 1}`, voltage: newVoltage }];
 
-        // Core physics parameters
         let speedVal = newSpeed;
         let rpmVal = newRpm;
         let mafVal = newMaf;
@@ -150,19 +189,16 @@ function Dashboard() {
         let newProgress = prev.route.progress;
 
         if (prev.route.progress >= 100) {
-          // Destination reached: lock speed and idle
           speedVal = 0;
           rpmVal = 800 + (Math.random() - 0.5) * 40;
           mafVal = 2.4 + (Math.random() - 0.5) * 0.4;
           newProgress = 100;
         } else {
-          // Distance covering: speed km/h to distance in km for 300ms tick
           newTripMileage = prev.tripMileage + (speedVal / 3600) * 0.3;
           newProgress = (newTripMileage / 25) * 100;
           if (newProgress >= 100) newProgress = 100;
         }
 
-        // GPS Coordinates tracking
         let newLat = prev.route.lat;
         let newLon = prev.route.lon;
         if (newProgress < 100 && speedVal > 0) {
@@ -172,17 +208,29 @@ function Dashboard() {
 
         const newEtaMinutes = speedVal > 0 ? ((25 - newTripMileage) / speedVal) * 60 : 0;
 
-        // Trip active timer and active fuel burned metrics
         const newDuration = prev.activeDuration + 0.3;
         const fuelBurnedThisTick = (mafVal * 0.33 / 3600) * 0.3;
         const newActiveFuelUsed = prev.activeFuelUsed + fuelBurnedThisTick;
 
-        // Score events logic
+        const newTripCoordinates = [...prev.tripCoordinates];
+        if (Math.random() < 0.2) {
+           newTripCoordinates.push([newLat, newLon]);
+        }
+
+        const minLat = Math.min(...GEOFENCE_COORDS.map(c => c[0]));
+        const maxLat = Math.max(...GEOFENCE_COORDS.map(c => c[0]));
+        const minLon = Math.min(...GEOFENCE_COORDS.map(c => c[1]));
+        const maxLon = Math.max(...GEOFENCE_COORDS.map(c => c[1]));
+        const isOutsideGeofence = newLat < minLat || newLat > maxLat || newLon < minLon || newLon > maxLon;
+
         let scorePenalty = 0;
         let eventLabel = '';
 
         const rand = Math.random();
-        if (speedVal > speedLimit) {
+        if (isOutsideGeofence) {
+          scorePenalty = 2.0;
+          eventLabel = 'Geofence Exit';
+        } else if (speedVal > speedLimit) {
           scorePenalty = 0.8;
           eventLabel = 'Speeding';
         } else if (speedDelta < -4.8) {
@@ -205,14 +253,47 @@ function Dashboard() {
         if (eventLabel) {
           updatedScore = Math.max(0, prev.score - scorePenalty);
           updatedEvents = [{ label: eventLabel, delta: -scorePenalty }, ...prev.events.slice(0, 3)];
+          
+          // Log to Safety Coach if it's a driving event
+          if (['Harsh Brake', 'Rapid Accel', 'Speeding'].includes(eventLabel)) {
+             setSafetyLog(logs => [{ 
+               id: Date.now(),
+               time: new Date().toLocaleTimeString(), 
+               type: eventLabel, 
+               penalty: scorePenalty,
+               speed: speedVal.toFixed(1)
+             }, ...logs].slice(0, 10));
+          }
         } else if (rand < 0.2) {
           updatedScore = Math.min(100, prev.score + 0.1);
         }
 
-        // Parts wear calculations
+        // Random Security Anomalies Simulation
+        const anomalyRand = Math.random();
+        if (anomalyRand < 0.005) { // 0.5% chance per tick of sensor drop
+           setSecurityState(s => ({
+              ...s,
+              threatLevel: 'Elevated',
+              anomalies: [{ id: Date.now(), time: new Date().toLocaleTimeString(), type: 'Signal Drop', message: 'Intermittent signal loss from Engine Control Unit.' }, ...s.anomalies].slice(0, 5)
+           }));
+        } else if (fuelBurn > 0.05) { // Massive fuel drop (simulated theft)
+           setSecurityState(s => ({
+              ...s,
+              threatLevel: 'Critical',
+              anomalies: [{ id: Date.now(), time: new Date().toLocaleTimeString(), type: 'Fuel Siphoning', message: 'Rapid fuel loss detected while vehicle is stationary or slow.' }, ...s.anomalies].slice(0, 5)
+           }));
+        }
+        
+        if (isOutsideGeofence) {
+           setSecurityState(s => ({ ...s, isGeofenceBreached: true, threatLevel: 'Alert' }));
+        } else {
+           setSecurityState(s => ({ ...s, isGeofenceBreached: false }));
+        }
+
         let brakeWearDelta = 0.0015;
+
         if (eventLabel === 'Harsh Brake') {
-          brakeWearDelta += 1.5;
+          brakeWearDelta += isBadWeather ? 2.5 : 1.5;
         }
         let oilWearDelta = 0.002;
         if (rpmVal > 3800) {
@@ -221,6 +302,31 @@ function Dashboard() {
         let coolantWearDelta = 0.001;
         if (coolantVal > 100) {
           coolantWearDelta += 0.015;
+        }
+
+        // AI Navigator Thought Logging
+        if (aiNavigatorEnabled) {
+          const randLog = Math.random();
+          if (isBadWeather && randLog < 0.05) {
+             setAiThoughtLogs(logs => [{ time: new Date().toLocaleTimeString(), message: 'Heavy rain detected. Reducing max speed for safety and dynamically recalculating ETA...' }, ...logs].slice(0, 5));
+          } else if (randLog < 0.01) {
+             setAiThoughtLogs(logs => [{ time: new Date().toLocaleTimeString(), message: 'Traffic flow is optimal. Maintaining current routing coordinates.' }, ...logs].slice(0, 5));
+          }
+        }
+
+        // AI Mechanic Predictive Failure
+        let newPredictedFailureDays = prev.predictedFailureDays;
+        if (aiMechanicEnabled) {
+           newPredictedFailureDays = {
+             oil: Math.max(1, Math.round(prev.partsWear.oil / (oilWearDelta * 200))),
+             brakes: Math.max(1, Math.round(prev.partsWear.brakes / (brakeWearDelta * 200))),
+             battery: Math.max(1, Math.round(prev.partsWear.battery / (0.0005 * 200))),
+             coolant: Math.max(1, Math.round(prev.partsWear.coolant / (coolantWearDelta * 200)))
+           };
+
+           if (newPredictedFailureDays.brakes < 15 && Math.random() < 0.1) {
+             updatedEvents = [{ label: 'AI Alert: Brake Wear Critical!', delta: 0 }, ...updatedEvents].slice(0, 3);
+           }
         }
 
         const newPartsWear = {
@@ -245,6 +351,8 @@ function Dashboard() {
           activeDuration: newDuration,
           activeFuelUsed: newActiveFuelUsed,
           partsWear: newPartsWear,
+          predictedFailureDays: newPredictedFailureDays,
+          tripCoordinates: newTripCoordinates,
           route: {
             progress: newProgress,
             lat: newLat,
@@ -260,13 +368,8 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [isConnected, vehicleProfile, speedLimit, aiAgentOptimized]);
 
-  const handleClearDTCs = () => {
-    setActiveDTCs([]);
-  };
-
-  const handleTriggerDTC = () => {
-    setActiveDTCs(['P0300']);
-  };
+  const handleClearDTCs = () => setActiveDTCs([]);
+  const handleTriggerDTC = () => setActiveDTCs(['P0300']);
 
   const handleEndTrip = () => {
     const distanceCovered = telemetry.tripMileage;
@@ -281,10 +384,11 @@ function Dashboard() {
       distance: distanceCovered,
       avgSpeed: durationSeconds > 0 ? (distanceCovered / (durationSeconds / 3600)) : 0,
       fuelUsed: fuelConsumed,
-      score: finalScore
+      score: finalScore,
+      path: telemetry.tripCoordinates
     };
 
-    const updatedHistory = [newTrip, ...tripHistory];
+    const updatedHistory = [newTrip, ...tripHistory].slice(0, 10);
     setTripHistory(updatedHistory);
     localStorage.setItem('velociq_trip_history', JSON.stringify(updatedHistory));
 
@@ -295,6 +399,7 @@ function Dashboard() {
       score: 100,
       activeDuration: 0,
       activeFuelUsed: 0,
+      tripCoordinates: [],
       events: [{ label: 'Smooth launch', delta: 0 }],
       route: {
         ...prev.route,
@@ -329,109 +434,93 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900/80 px-6 py-5 shadow-2xl shadow-black/40 backdrop-blur">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.45em] text-cyan-400">VelocIQ</p>
-              <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Smart Speed & Fuel Management System</h1>
-              <p className="mt-3 max-w-2xl text-sm text-slate-400 sm:text-base">
-                Mocked live telemetry from ESP32 + OBD-II + BLE + Cloud AI, tuned to feel like an active vehicle monitoring stream.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                <div className="font-semibold">Fleet status</div>
-                <div className="mt-1 text-emerald-200">
-                  {isConnected ? 'All modules synchronized' : 'Data buffered offline'}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sessionStorage.removeItem('velociq_logged_in');
-                  navigate('/');
-                }}
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-rose-400 hover:text-rose-300"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <StatusBar isConnected={isConnected} activeDTCs={activeDTCs} spiffsCount={spiffsCount} />
-
-        <main className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-          <div className="flex flex-col gap-4">
-            <TelemetryPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} />
-            <div className="grid gap-4 md:grid-cols-2">
-              <FuelMileageCard telemetry={telemetry} />
-              <CostSavingsCalculator fuelUsed={telemetry.activeFuelUsed} fuelPrice={fuelPrice} setFuelPrice={setFuelPrice} aiAgentOptimized={aiAgentOptimized} />
-            </div>
-            <RouteTracker route={telemetry.route} speed={telemetry.speed} />
-            <AIModelTuner 
-              modelState={modelState} 
-              onTrainingComplete={handleTrainingComplete} 
-              aiAgentOptimized={aiAgentOptimized} 
-              onToggleAIAgent={() => setAiAgentOptimized(!aiAgentOptimized)} 
-            />
-            <ECUDiagnostics activeDTCs={activeDTCs} onClearDTCs={handleClearDTCs} onTriggerDTC={handleTriggerDTC} />
-          </div>
-          <div className="flex flex-col gap-4">
-            <DriverScore telemetry={telemetry} />
-            <AICoachingPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} driverModel={modelState.driver} />
-            <MaintenanceTracker partsWear={telemetry.partsWear} onServicePart={handleServicePart} maintenanceModel={modelState.maintenance} />
-            <TripLogger 
-              tripHistory={tripHistory} 
-              onEndTrip={handleEndTrip} 
-              onClearHistory={handleClearHistory} 
-              activeStats={{
-                duration: telemetry.activeDuration,
-                distance: telemetry.tripMileage,
-                avgSpeed: telemetry.activeDuration > 0 ? (telemetry.tripMileage / (telemetry.activeDuration / 3600)) : 0,
-                fuelUsed: telemetry.activeFuelUsed,
-                co2: telemetry.co2,
-                score: telemetry.score
-              }} 
-            />
-            <AlertsFeed />
-          </div>
-        </main>
-
-        <SimulationSettings
-          isConnected={isConnected}
-          setIsConnected={setIsConnected}
-          vehicleProfile={vehicleProfile}
-          setVehicleProfile={setVehicleProfile}
-          speedLimit={speedLimit}
-          setSpeedLimit={setSpeedLimit}
+    <SimulationContext.Provider value={{ 
+      telemetry, 
+      setTelemetry, 
+      isConnected, 
+      setIsConnected, 
+      speedLimit, 
+      setSpeedLimit, 
+      aiAgentOptimized, 
+      setAiAgentOptimized,
+      weather,
+      aiNavigatorEnabled,
+      setAiNavigatorEnabled,
+      aiMechanicEnabled,
+      setAiMechanicEnabled,
+      aiThoughtLogs,
+      securityState,
+      setSecurityState,
+      safetyLog
+    }}>
+      <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)]">
+        <Sidebar 
+          isConnected={isConnected} 
+          setIsConnected={setIsConnected} 
+          vehicleProfile={vehicleProfile} 
+          speedLimit={speedLimit} 
+          setSpeedLimit={setSpeedLimit} 
         />
-
-        <CostComparison />
+        <div className="relative flex-1 overflow-auto flex flex-col">
+          {/* Top bar across all dashboards */}
+          <div className="border-b border-slate-800 bg-slate-900/40 px-8 py-4 backdrop-blur z-40">
+            <div className="flex items-center justify-between max-w-6xl mx-auto">
+              <h2 className="text-xl font-semibold text-white">Monitoring: {activeVehicle?.name} ({activeVehicle?.licensePlate})</h2>
+              <div className="text-sm text-slate-400">Assigned: {activeDriver?.name || 'Unassigned'}</div>
+            </div>
+          </div>
+          
+          <Routes>
+            <Route path="/dashboard" element={
+              <TelemetryPage 
+                telemetry={telemetry} 
+                isConnected={isConnected} 
+                speedLimit={speedLimit} 
+                activeDTCs={activeDTCs} 
+                spiffsCount={spiffsCount}
+                handleClearDTCs={handleClearDTCs} 
+                handleTriggerDTC={handleTriggerDTC} 
+              />
+            } />
+            <Route path="/navigation" element={
+              <NavigationPage 
+                telemetry={telemetry} 
+                weather={weather} 
+                tripHistory={tripHistory} 
+                aiNavigatorEnabled={aiNavigatorEnabled}
+                setAiNavigatorEnabled={setAiNavigatorEnabled}
+                aiThoughtLogs={aiThoughtLogs}
+              />
+            } />
+            <Route path="/analytics" element={
+              <AnalyticsPage 
+                telemetry={telemetry} 
+                tripHistory={tripHistory} 
+                modelState={modelState} 
+                setModelState={setModelState}
+                aiAgentOptimized={aiAgentOptimized}
+                setAiAgentOptimized={setAiAgentOptimized}
+                fuelPrice={fuelPrice}
+              />
+            } />
+            <Route path="/maintenance" element={
+              <MaintenancePage 
+                telemetry={telemetry} 
+                handleServicePart={handleServicePart} 
+                modelState={modelState} 
+                aiMechanicEnabled={aiMechanicEnabled}
+                setAiMechanicEnabled={setAiMechanicEnabled}
+              />
+            } />
+            <Route path="/fleet" element={<FleetManager />} />
+            <Route path="/safety" element={<DriverSafetyPage />} />
+            <Route path="/security" element={<SecurityPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </SimulationContext.Provider>
   );
-}
-
-function ProtectedRoute({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') === 'true');
-
-  useEffect(() => {
-    const syncAuthState = () => {
-      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') === 'true');
-    };
-
-    window.addEventListener('storage', syncAuthState);
-    return () => window.removeEventListener('storage', syncAuthState);
-  }, []);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
 }
 
 export default function App() {
@@ -452,17 +541,17 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <FleetProvider>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+        <Route
+          path="/*"
+          element={
+            isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />
+          }
+        />
+      </Routes>
+    </FleetProvider>
   );
 }

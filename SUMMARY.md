@@ -16,7 +16,7 @@ All dashboard components are interlinked and synchronized via a centralized stat
          ┌───────────────────┼───────────────────┬──────────────────┐
          ▼                   ▼                   ▼                  ▼
 ┌─────────────────┐ ┌─────────────────┐ ┌────────────────┐ ┌─────────────────┐
-│ Telemetry Panel │ │ Fuel Mileage    │ │ Route Tracker  │ │ Diagnostics     │
+│ Telemetry Panel │ │ Fuel Mileage    │ │ Route Tracker  │ │ Diagnostics     |
 │ (Live Gauges)   │ │ & Cost Savings  │ │ (Live GPS/ETA) │ │ (OBD DTC Scan)  │
 └─────────────────┘ └─────────────────┘ └────────────────┘ └─────────────────┘
          ▲                   ▲                   ▲                  ▲

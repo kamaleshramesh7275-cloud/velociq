@@ -7,7 +7,7 @@ const statusConfig = {
   coolant: { name: 'Coolant Fluid Quality', desc: 'Impacted by peak temperature workloads.' }
 };
 
-export default function MaintenanceTracker({ partsWear, onServicePart, maintenanceModel }) {
+export default function MaintenanceTracker({ partsWear, predictedFailureDays, onServicePart, maintenanceModel, aiMechanicEnabled, setAiMechanicEnabled }) {
   const { trained, accuracy, type } = maintenanceModel || { trained: false, accuracy: 50, type: 'None' };
 
   const getStatusColor = (val) => {
@@ -29,13 +29,33 @@ export default function MaintenanceTracker({ partsWear, onServicePart, maintenan
           <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Diagnostics</p>
           <h2 className="text-xl font-semibold text-white">Parts Wear & Lifecycles</h2>
         </div>
-        <span className={`text-[10px] font-mono font-semibold uppercase px-2.5 py-1 rounded-full border ${
-          trained 
-            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' 
-            : 'border-slate-800 bg-slate-950 text-slate-500'
-        }`}>
-          {trained ? `AI Forecast: Active (${accuracy.toFixed(0)}%)` : 'AI: Untrained (50%)'}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`text-[10px] font-mono font-semibold uppercase px-2.5 py-1 rounded-full border ${
+            trained 
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' 
+              : 'border-slate-800 bg-slate-950 text-slate-500'
+          }`}>
+            {trained ? `AI Forecast: Active (${accuracy.toFixed(0)}%)` : 'AI: Untrained (50%)'}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold ${aiMechanicEnabled ? 'text-cyan-400' : 'text-slate-500'}`}>
+              Mechanic AI
+            </span>
+            <button
+              type="button"
+              onClick={() => setAiMechanicEnabled(!aiMechanicEnabled)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 outline-none ${
+                aiMechanicEnabled ? 'bg-cyan-500' : 'bg-slate-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-slate-950 transition-transform duration-300 ${
+                  aiMechanicEnabled ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -58,8 +78,12 @@ export default function MaintenanceTracker({ partsWear, onServicePart, maintenan
 
               <div>
                 <div className="flex items-end justify-between text-xs text-slate-400 mb-1.5">
-                  <span>Health:</span>
-                  <span className="font-bold text-slate-200">{Math.round(value)}%</span>
+                  <span>Health: <span className="font-bold text-slate-200">{Math.round(value)}%</span></span>
+                  {aiMechanicEnabled && (
+                    <span className="text-[10px] font-medium text-cyan-400">
+                      Fail in: <span className="font-bold">{predictedFailureDays?.[key] || '?'} Days</span>
+                    </span>
+                  )}
                 </div>
                 <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden mb-3">
                   <div 
