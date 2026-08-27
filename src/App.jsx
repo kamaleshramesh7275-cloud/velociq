@@ -490,6 +490,8 @@ function SimulationWrapper() {
                 aiNavigatorEnabled={aiNavigatorEnabled}
                 setAiNavigatorEnabled={setAiNavigatorEnabled}
                 aiThoughtLogs={aiThoughtLogs}
+                handleEndTrip={handleEndTrip}
+                handleClearHistory={handleClearHistory}
               />
             } />
             <Route path="/analytics" element={
@@ -501,6 +503,7 @@ function SimulationWrapper() {
                 aiAgentOptimized={aiAgentOptimized}
                 setAiAgentOptimized={setAiAgentOptimized}
                 fuelPrice={fuelPrice}
+                setFuelPrice={setFuelPrice}
               />
             } />
             <Route path="/maintenance" element={
