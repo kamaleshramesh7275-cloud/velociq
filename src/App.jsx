@@ -15,6 +15,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import MaintenancePage from './pages/MaintenancePage';
 import DriverSafetyPage from './pages/DriverSafetyPage';
 import SecurityPage from './pages/SecurityPage';
+import EngineTwinPage from './pages/EngineTwinPage';
 
 function SimulationWrapper() {
   const { activeVehicle, activeDriver } = useFleet();
@@ -513,6 +514,14 @@ function SimulationWrapper() {
                 modelState={modelState} 
                 aiMechanicEnabled={aiMechanicEnabled}
                 setAiMechanicEnabled={setAiMechanicEnabled}
+              />
+            } />
+            <Route path="/engine-twin" element={
+              <EngineTwinPage 
+                telemetry={telemetry} 
+                onTriggerDTC={handleTriggerDTC} 
+                onClearDTCs={handleClearDTCs} 
+                activeDTCs={activeDTCs} 
               />
             } />
             <Route path="/fleet" element={<FleetManager />} />
