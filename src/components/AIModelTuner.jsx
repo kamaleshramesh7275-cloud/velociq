@@ -1,257 +1,235 @@
 import React, { useState } from 'react';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import { Card, SectionLabel, Slider } from './ui';
+import { PulseDot } from './icons';
 
 export default function AIModelTuner({ modelState, onTrainingComplete, aiAgentOptimized, onToggleAIAgent }) {
+  // Three model tabs: 'driver', 'maintenance', 'fuel'
   const [selectedModel, setSelectedModel] = useState('driver');
   const [learningRate, setLearningRate] = useState(0.01);
-  const [epochs, setEpochs] = useState(20);
-  const [modelType, setModelType] = useState('Neural Network');
+  const [epochs, setEpochs] = useState(25);
   
   const [isTraining, setIsTraining] = useState(false);
   const [currentEpoch, setCurrentEpoch] = useState(0);
-  const [liveHistory, setLiveHistory] = useState([]);
+  const [liveLossHistory, setLiveLossHistory] = useState([
+    { epoch: 1, loss: 0.82, accuracy: 48 },
+    { epoch: 5, loss: 0.54, accuracy: 68 },
+    { epoch: 10, loss: 0.32, accuracy: 84 },
+    { epoch: 15, loss: 0.21, accuracy: 91 },
+    { epoch: 20, loss: 0.14, accuracy: 96 }
+  ]);
+  const [liveAccuracy, setLiveAccuracy] = useState(modelState[selectedModel]?.accuracy || 94.2);
+
+  const modelTabs = [
+    { id: 'driver', label: 'Driver Behavior' },
+    { id: 'maintenance', label: 'Predictive Maintenance' },
+    { id: 'fuel', label: 'Fuel Optimization' }
+  ];
 
   const handleTrain = () => {
     setIsTraining(true);
     setCurrentEpoch(0);
-    setLiveHistory([]);
+    setLiveLossHistory([]);
 
-    let epoch = 0;
+    let ep = 0;
     const historyData = [];
 
-    const isLRExploded = learningRate > 0.12;
-    const isUnderfitted = epochs < 10;
-
     const interval = setInterval(() => {
-      epoch += 1;
-      setCurrentEpoch(epoch);
+      ep += 1;
+      setCurrentEpoch(ep);
 
-      let loss = 0;
-      let accuracy = 0;
+      const decayRate = 0.86;
+      const loss = parseFloat((0.85 * Math.pow(decayRate, ep) + (Math.random() * 0.04)).toFixed(3));
+      const acc = parseFloat(Math.min(99.6, 50 + (49 * (1 - Math.pow(0.85, ep))) + (Math.random() - 0.5) * 1.2).toFixed(1));
 
-      if (isLRExploded) {
-        // High learning rate causes loss to oscillate or explode
-        loss = 0.5 + Math.random() * 0.45;
-        accuracy = 30 + Math.random() * 15;
-      } else {
-        // Learning rate is optimal
-        const convergenceRate = modelType === 'Random Forest' ? 0.75 : 0.84;
-        loss = 0.8 * Math.pow(convergenceRate, epoch) + Math.random() * 0.05;
-        accuracy = Math.min(99.4, 45 + (54.4 * (1 - Math.pow(0.8, epoch))) + (Math.random() - 0.5) * 1.5);
-      }
+      historyData.push({ epoch: ep, loss, accuracy: acc });
+      setLiveLossHistory([...historyData]);
+      setLiveAccuracy(acc);
 
-      // If epochs are too low, accuracy is cut short
-      if (isUnderfitted && epoch === epochs) {
-        accuracy = Math.min(accuracy, 78);
-      }
-
-      historyData.push({
-        name: `${epoch}`,
-        loss: parseFloat(loss.toFixed(3)),
-        accuracy: parseFloat(accuracy.toFixed(1))
-      });
-
-      setLiveHistory([...historyData]);
-
-      if (epoch >= epochs) {
+      if (ep >= epochs) {
         clearInterval(interval);
         setIsTraining(false);
-        onTrainingComplete(selectedModel, {
-          trained: true,
-          accuracy: accuracy,
-          isErratic: isLRExploded,
-          history: historyData,
-          lr: learningRate,
-          epochs: epochs,
-          type: modelType
-        });
+        if (onTrainingComplete) {
+          onTrainingComplete(selectedModel, {
+            trained: true,
+            accuracy: acc,
+            history: historyData,
+            lr: learningRate,
+            epochs: epochs
+          });
+        }
       }
-    }, 150); // Speed up training for user-friendly execution
+    }, 120);
   };
 
+  // Accuracy Ring SVG metrics
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const accuracyOffset = circumference - (liveAccuracy / 100) * circumference;
+
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
-      <div className="mb-4">
-        <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Cloud AI Hub</p>
-        <h2 className="text-xl font-semibold text-white">AI Model Training & Tuning</h2>
+    <div className="bg-white rounded-2xl border border-line shadow-sm p-5 relative overflow-hidden">
+      <div className="racing-stripe" />
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#0B3D91] animate-pulse" />
+            <SectionLabel label="AUTONOMOUS AGENT / AI MODEL TUNER" />
+          </div>
+          <h3 className="text-lg font-bold text-text-hi font-heading mt-1">Neural Network Hyperparameter Lab</h3>
+        </div>
+
+        {/* Autonomous Agent Optimization Toggle */}
+        <button
+          onClick={onToggleAIAgent}
+          className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition flex items-center gap-2 border ${
+            aiAgentOptimized
+              ? 'bg-blue-50 text-[#0B3D91] border-blue-200 shadow-xs'
+              : 'bg-slate-100 text-text-mid border-line hover:text-text-hi'
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[#0B3D91]" />
+          {aiAgentOptimized ? 'AI REASONING ACTIVE' : 'MANUAL AI STATE'}
+        </button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        {/* Left Tuning Panel */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1" htmlFor="model-select">
-              Select AI Target Model
-            </label>
-            <select
-              id="model-select"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={isTraining}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 disabled:opacity-50"
-            >
-              <option value="driver">Driving Behavior Classifier</option>
-              <option value="maintenance">Maintenance Breakdown Predictor</option>
-              <option value="fuel">Fuel Efficiency Optimizer</option>
-            </select>
-          </div>
+      {/* 3 Model Tabs in Brand Blue theme */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-line mb-4">
+        {modelTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setSelectedModel(tab.id)}
+            disabled={isTraining}
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition ${
+              selectedModel === tab.id
+                ? 'bg-white text-[#0B3D91] shadow-xs border border-slate-200'
+                : 'text-text-mid hover:text-text-hi'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="grid gap-3 grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1" htmlFor="architecture-select">
-                Architecture
-              </label>
-              <select
-                id="architecture-select"
-                value={modelType}
-                onChange={(e) => setModelType(e.target.value)}
-                disabled={isTraining}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none disabled:opacity-50"
-              >
-                <option value="Neural Network">Neural Net</option>
-                <option value="Random Forest">Random Forest</option>
-                <option value="Linear Regression">Linear Reg</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Epochs: <span className="text-cyan-400 font-bold">{epochs}</span>
-              </label>
-              <input
-                type="range"
-                min="5"
-                max="40"
-                step="5"
-                value={epochs}
-                onChange={(e) => setEpochs(Number(e.target.value))}
-                disabled={isTraining}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-800 accent-cyan-400 disabled:opacity-50 mt-2"
-              />
-            </div>
-          </div>
-
+      {/* Controls & Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+        
+        {/* Sliders (Cols 1-7) */}
+        <div className="md:col-span-7 flex flex-col gap-3 rounded-xl border border-line bg-slate-50 p-4">
           <div>
-            <div className="flex justify-between text-xs font-semibold text-slate-400 mb-1">
-              <label htmlFor="learning-rate">Learning Rate (α)</label>
-              <span className={learningRate > 0.12 ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
-                {learningRate} {learningRate > 0.12 ? '(Explodes Loss)' : '(Optimal)'}
-              </span>
+            <div className="flex justify-between text-xs font-mono mb-1">
+              <span className="text-text-lo uppercase">Learning Rate (α)</span>
+              <span className="text-[#0B3D91] font-bold tabular-nums">{learningRate}</span>
             </div>
             <input
-              id="learning-rate"
               type="range"
-              min="0.005"
-              max="0.25"
-              step="0.005"
+              min="0.001"
+              max="0.05"
+              step="0.002"
               value={learningRate}
-              onChange={(e) => setLearningRate(Number(e.target.value))}
               disabled={isTraining}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-800 accent-cyan-400 disabled:opacity-50 mt-1"
+              onChange={(e) => setLearningRate(Number(e.target.value))}
+              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0B3D91]"
             />
           </div>
 
-          <div className="border-t border-slate-800/80 pt-3">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h4 className="text-xs font-semibold text-slate-300">AI Agent Throttle Control</h4>
-                <p className="text-[10px] text-slate-500">Autonomous cruise engine tuning</p>
-              </div>
-              <button
-                type="button"
-                onClick={onToggleAIAgent}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ${
-                  aiAgentOptimized ? 'bg-cyan-500' : 'bg-slate-700'
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-slate-950 transition-transform duration-300 ${
-                    aiAgentOptimized ? 'translate-x-4.5' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+          <div>
+            <div className="flex justify-between text-xs font-mono mb-1">
+              <span className="text-text-lo uppercase">Training Epochs</span>
+              <span className="text-[#0B3D91] font-bold tabular-nums">{epochs}</span>
             </div>
+            <input
+              type="range"
+              min="10"
+              max="60"
+              step="5"
+              value={epochs}
+              disabled={isTraining}
+              onChange={(e) => setEpochs(Number(e.target.value))}
+              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0B3D91]"
+            />
           </div>
 
           <button
-            type="button"
             onClick={handleTrain}
             disabled={isTraining}
-            className={`w-full rounded-full py-2.5 text-xs font-bold text-slate-950 transition duration-300 ${
-              isTraining ? 'bg-slate-800 text-slate-500 cursor-wait' : 'bg-cyan-500 hover:bg-cyan-400'
+            className={`mt-2 py-2 px-4 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition flex items-center justify-center gap-2 ${
+              isTraining
+                ? 'bg-blue-100 text-[#0B3D91] cursor-not-allowed border border-blue-200'
+                : 'bg-[#0B3D91] text-white hover:bg-[#093276] shadow-xs'
             }`}
           >
-            {isTraining ? `Training (Epoch ${currentEpoch}/${epochs})...` : 'Train AI Model'}
+            {isTraining ? `Optimizing Epoch ${currentEpoch} / ${epochs}...` : 'Train Neural Model'}
           </button>
         </div>
 
-        {/* Right Training Chart Dashboard */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold text-slate-300">Live Training Metrics</h3>
-              <div className="text-right">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400">Target Accuracy:</span>
-                <p className={`text-base font-bold ${
-                  modelState[selectedModel]?.trained
-                    ? modelState[selectedModel]?.isErratic
-                      ? 'text-rose-400'
-                      : 'text-emerald-400'
-                    : 'text-slate-500'
-                }`}>
-                  {modelState[selectedModel]?.trained
-                    ? `${modelState[selectedModel]?.accuracy.toFixed(1)}%`
-                    : 'Untrained'
-                  }
-                </p>
-              </div>
-            </div>
-
-            <div className="h-44 w-full">
-              {liveHistory.length === 0 && !isTraining ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                  <span className="text-slate-600 text-3xl font-bold">No Metrics</span>
-                  <p className="text-xs text-slate-500 mt-1 max-w-xs leading-normal">
-                    Select your model, configure the hyperparameters on the left, and click train to start live training.
-                  </p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={liveHistory}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
-                    <YAxis yAxisId="left" stroke="#38bdf8" tick={{ fontSize: 10 }} domain={[0, 1]} label={{ value: 'Loss', angle: -90, position: 'insideLeft', style: { fill: '#38bdf8', fontSize: 10 } }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{ fontSize: 10 }} domain={[20, 100]} label={{ value: 'Accuracy (%)', angle: 90, position: 'insideRight', style: { fill: '#10b981', fontSize: 10 } }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="loss" stroke="#38bdf8" strokeWidth={2} dot={false} />
-                    <Line yAxisId="right" type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-slate-800/80 pt-3 flex items-center justify-between text-[11px] text-slate-400">
-            <div>
-              Status: <span className={`font-semibold ${
-                isTraining 
-                  ? 'text-cyan-400' 
-                  : modelState[selectedModel]?.trained 
-                    ? modelState[selectedModel]?.isErratic 
-                      ? 'text-rose-400 font-bold' 
-                      : 'text-emerald-400' 
-                    : 'text-slate-500'
-              }`}>
-                {isTraining ? 'Training...' : modelState[selectedModel]?.trained ? modelState[selectedModel]?.isErratic ? 'Model Diverged' : 'Model Tuned' : 'Untrained'}
+        {/* Accuracy Ring Gauge (Cols 8-12) */}
+        <div className="md:col-span-5 flex flex-col items-center justify-center rounded-xl border border-line bg-slate-50 p-4">
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <svg className="w-24 h-24 transform -rotate-90">
+              <circle
+                cx="48"
+                cy="48"
+                r={radius}
+                stroke="#E2E8F0"
+                strokeWidth="6"
+                fill="none"
+              />
+              <circle
+                cx="48"
+                cy="48"
+                r={radius}
+                stroke="#0B3D91"
+                strokeWidth="6"
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={accuracyOffset}
+                strokeLinecap="round"
+                className="transition-all duration-300"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-bold font-mono text-[#0B3D91] tabular-nums">
+                {liveAccuracy.toFixed(1)}%
               </span>
+              <span className="text-[9px] uppercase font-mono text-text-lo">Accuracy</span>
             </div>
-            {modelState[selectedModel]?.trained && (
-              <div>
-                Tuned via {modelState[selectedModel]?.type} (α={modelState[selectedModel]?.lr})
-              </div>
-            )}
           </div>
+          <span className="text-[10px] font-mono text-text-lo mt-2">
+            Loss: {liveLossHistory[liveLossHistory.length - 1]?.loss || 0.12}
+          </span>
+        </div>
+
+      </div>
+
+      {/* Live Loss Curve Chart */}
+      <div className="rounded-xl border border-line bg-slate-50 p-3">
+        <div className="flex items-center justify-between text-xs font-mono mb-2">
+          <span className="text-[10px] uppercase text-text-lo font-semibold">Empirical Loss Convergence</span>
+          <span className="text-[10px] text-[#0B3D91] font-mono font-bold">Cross-Entropy Loss</span>
+        </div>
+        <div className="h-28 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={liveLossHistory} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+              <defs>
+                <linearGradient id="lossGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0B3D91" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#0B3D91" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="epoch" stroke="#475569" tick={{ fontSize: 10, fill: '#334155' }} />
+              <YAxis stroke="#475569" tick={{ fontSize: 10, fill: '#334155' }} domain={[0, 1]} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#DDE2EA', borderRadius: '8px', fontSize: '10px', color: '#0F172A', boxShadow: '0 4px 12px rgba(15,23,42,0.08)' }}
+                formatter={(val) => [val, 'Loss']}
+              />
+              <Area type="monotone" dataKey="loss" stroke="#0B3D91" strokeWidth={2} fillOpacity={1} fill="url(#lossGrad)" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

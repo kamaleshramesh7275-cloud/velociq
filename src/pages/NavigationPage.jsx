@@ -5,6 +5,8 @@ import TripLogger from '../components/TripLogger';
 import RangeVelocityGovernor from '../components/RangeVelocityGovernor';
 import GlosaAdvisor from '../components/GlosaAdvisor';
 import { useFleet } from '../context/FleetContext';
+import { SectionLabel, Card, Toggle } from '../components/ui';
+import { PulseDot } from '../components/icons';
 
 export default function NavigationPage({ 
   telemetry, 
@@ -23,106 +25,122 @@ export default function NavigationPage({
 }) {
   const { activeVehicle } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
-  const remainingDistance = Math.max(0, 25 - telemetry.tripMileage);
+  const remainingDistance = Math.max(0, 25 - (telemetry?.tripMileage || 0));
 
   return (
-    <div className="p-8 text-slate-100 flex-1 overflow-auto">
-      <div className="mx-auto max-w-6xl flex flex-col gap-6">
-        <header>
-          <h1 className="text-3xl font-bold text-white">GPS, Speed & Range Intelligence</h1>
-          <p className="mt-2 text-slate-400">
-            Real-time trajectory, GLOSA traffic light speed guidance, and velocity-dependent range governing.
-          </p>
+    <div className="p-6 md:p-8 text-text-hi flex-1 overflow-auto bg-[#F4F6F9]">
+      <div className="mx-auto max-w-7xl flex flex-col gap-6">
+        
+        {/* Page Header with 3px Racing Stripe */}
+        <header className="relative bg-white border border-[#CBD5E1] rounded-xl p-5 shadow-sm overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#0B3D91] via-[#0B3D91] to-[#D7263D]" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <SectionLabel label="EXPRESSWAY & TRAFFIC DISPATCH" />
+              <h1 className="text-2xl md:text-3xl font-heading font-black text-[#0A0F1D] tracking-tight mt-1">
+                GPS Navigation & GLOSA Range Governor
+              </h1>
+              <p className="mt-1 text-xs text-slate-700 font-medium">
+                Autonomous green-wave synchronization, Esri World Light Gray expressway telematics, and velocity-dependent limp-home governor.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* AI Dispatch Mode Toggle */}
+              <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-2 rounded-xl border border-line shadow-xs">
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-mono text-slate-700 font-bold block">AI NAVIGATOR</span>
+                  <span className={`text-xs font-mono font-bold ${aiNavigatorEnabled ? 'text-[#0B3D91]' : 'text-slate-700'}`}>
+                    {aiNavigatorEnabled ? 'AUTONOMOUS' : 'MANUAL'}
+                  </span>
+                </div>
+                <Toggle checked={aiNavigatorEnabled} onChange={() => setAiNavigatorEnabled(!aiNavigatorEnabled)} />
+              </div>
+            </div>
+          </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          {/* Left Column: Route, GLOSA & AI Dispatch */}
-          <div className="flex flex-col gap-6">
+        {/* 12-Column Grid Layout: Map (Cols 1-8) & Guidance (Cols 9-12) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Cols 1-8: Tall Map Tracker */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
             <RouteTracker 
-              route={telemetry.route} 
-              speed={telemetry.speed} 
+              route={telemetry?.route} 
+              speed={telemetry?.speed} 
               aiNavigatorEnabled={aiNavigatorEnabled} 
               weather={weather} 
             />
-            
+
+            {/* AI Navigator Reasoning Drawer if active */}
+            {aiNavigatorEnabled && (
+              <div className="rounded-2xl border border-line bg-white p-4 shadow-sm relative overflow-hidden">
+                <div className="racing-stripe" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-[#0B3D91] animate-pulse" />
+                    <span className="text-xs font-heading font-bold uppercase text-[#0B3D91] tracking-wider">
+                      AUTONOMOUS DISPATCH REASONING LOG
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-text-lo">GLOSA SYNC ONLINE</span>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto pr-2 font-mono text-xs">
+                  {aiThoughtLogs?.slice(-4).map((log, idx) => (
+                    <div key={idx} className="flex gap-2.5 text-text-mid">
+                      <span className="text-[#0B3D91] font-semibold tabular-nums shrink-0">[{log.time}]</span>
+                      <span className="text-text-hi">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cols 9-12: GLOSA Advisor + Range Velocity Governor */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
             <GlosaAdvisor 
-              speed={telemetry.speed}
+              speed={telemetry?.speed ?? 55}
               trafficSignal={trafficSignal}
               kineticWaste={kineticWaste}
               onSimulateStop={onSimulateStop}
             />
 
-            {/* AI Navigator Control Panel */}
-            <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Autonomous</p>
-                  <h2 className="text-xl font-semibold text-white">AI Dispatch & Routing</h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold ${aiNavigatorEnabled ? 'text-cyan-400' : 'text-slate-500'}`}>
-                    {aiNavigatorEnabled ? 'Navigator Active' : 'Manual Mode'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setAiNavigatorEnabled(!aiNavigatorEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 outline-none ${
-                      aiNavigatorEnabled ? 'bg-cyan-500' : 'bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-slate-950 transition-transform duration-300 ${
-                        aiNavigatorEnabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {aiNavigatorEnabled && (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Live Thought Log</h3>
-                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-2 scrollbar-hide">
-                    {aiThoughtLogs?.map((log, idx) => (
-                      <div key={idx} className="flex gap-3 text-sm">
-                        <span className="text-cyan-500 font-mono text-xs mt-0.5 whitespace-nowrap">[{log.time}]</span>
-                        <span className="text-slate-300">{log.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          </div>
-
-          {/* Right Column: Range Governor, Weather, Trip Logger */}
-          <div className="flex flex-col gap-6">
             <RangeVelocityGovernor 
-              fuelPercent={telemetry.fuel}
-              currentSpeed={telemetry.speed}
+              fuelPercent={telemetry?.fuel ?? 40}
+              currentSpeed={telemetry?.speed ?? 55}
               vehicleProfile={vehicleProfile}
               remainingDistance={remainingDistance}
               isLimpModeActive={isLimpModeActive}
               onToggleLimpMode={onToggleLimpMode}
             />
+          </div>
 
+        </div>
+
+        {/* Lower Row: Weather Widget and Trip Logger Table */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-4">
             <WeatherWidget weather={weather} />
+          </div>
 
+          <div className="lg:col-span-8">
             <TripLogger 
               tripHistory={tripHistory} 
               onEndTrip={handleEndTrip} 
               onClearHistory={handleClearHistory} 
               activeStats={{
-                duration: telemetry.activeDuration,
-                distance: telemetry.tripMileage,
-                avgSpeed: telemetry.activeDuration > 0 ? (telemetry.tripMileage / (telemetry.activeDuration / 3600)) : 0,
-                fuelUsed: telemetry.activeFuelUsed,
-                co2: telemetry.co2,
-                score: telemetry.score
+                duration: telemetry?.activeDuration || 0,
+                distance: telemetry?.tripMileage || 0,
+                avgSpeed: (telemetry?.activeDuration || 0) > 0 ? ((telemetry?.tripMileage || 0) / ((telemetry?.activeDuration || 1) / 3600)) : 0,
+                fuelUsed: telemetry?.activeFuelUsed || 0,
+                co2: telemetry?.co2 || 0,
+                score: telemetry?.score ?? 100
               }} 
             />
           </div>
         </div>
+
       </div>
     </div>
   );

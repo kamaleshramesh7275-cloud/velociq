@@ -16,36 +16,35 @@ export default function SimulationSettings({
   setSpeedLimit
 }) {
   const [isGarageOpen, setIsGarageOpen] = useState(false);
-  const activeProfile = profiles.find((p) => p.id === vehicleProfile) || profiles[0];
 
   return (
     <>
-      <section className="flex flex-col gap-4 border-t border-slate-800 pt-4">
+      <section className="flex flex-col gap-4 border-t border-[#DDE2EA] pt-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">Simulation</p>
-          <h2 className="text-sm font-semibold text-white">ESP32 & Tuning</h2>
+          <p className="text-[10px] uppercase font-mono tracking-widest text-[#0B3D91] font-bold">Simulation</p>
+          <h2 className="text-sm font-heading font-bold text-[#0F172A]">ESP32 & Speed Governor</h2>
         </div>
 
         <div className="flex flex-col gap-3">
           {/* BLE Connection Switch */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 flex flex-col justify-between">
+          <div className="rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] p-3 flex flex-col justify-between shadow-xs">
             <div>
-              <h3 className="text-xs font-semibold text-slate-300">Hardware Stream</h3>
+              <h3 className="text-xs font-heading font-bold text-[#0F172A]">Hardware Telemetry Stream</h3>
             </div>
             <div className="mt-2 flex items-center justify-between">
-              <span className={`text-[10px] font-medium ${isConnected ? 'text-emerald-400' : 'text-slate-400'}`}>
-                {isConnected ? 'BLE Connected' : 'BLE Disconnected'}
+              <span className={`text-[11px] font-mono font-bold ${isConnected ? 'text-[#047857]' : 'text-slate-600'}`}>
+                {isConnected ? '● BLE Connected' : '○ Standalone Mode'}
               </span>
               <button
                 type="button"
                 onClick={() => setIsConnected(!isConnected)}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 outline-none ${
-                  isConnected ? 'bg-cyan-500' : 'bg-slate-700'
+                  isConnected ? 'bg-[#047857]' : 'bg-slate-300'
                 }`}
               >
                 <span
-                  className={`inline-block h-3 w-3 transform rounded-full bg-slate-950 transition-transform duration-300 ${
-                    isConnected ? 'translate-x-5' : 'translate-x-1'
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs transition-transform duration-300 ${
+                    isConnected ? 'translate-x-5' : 'translate-x-0.5'
                   }`}
                 />
               </button>
@@ -53,13 +52,14 @@ export default function SimulationSettings({
           </div>
 
           {/* Speed Limit Adjuster */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 flex flex-col justify-between">
+          <div className="rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] p-3 flex flex-col justify-between shadow-xs">
             <div>
-              <h3 className="text-xs font-semibold text-slate-300">Speed Limit</h3>
+              <h3 className="text-xs font-heading font-bold text-[#0F172A]">Cruise Speed Governor</h3>
             </div>
             <div className="mt-2">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                <span>Limit: <span className="font-semibold text-cyan-400">{speedLimit} km/h</span></span>
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-700 font-bold mb-1">
+                <span>Governed Limit:</span>
+                <span className="font-bold text-[#0B3D91]">{speedLimit} km/h</span>
               </div>
               <input
                 type="range"
@@ -68,7 +68,7 @@ export default function SimulationSettings({
                 step="5"
                 value={speedLimit}
                 onChange={(e) => setSpeedLimit(Number(e.target.value))}
-                className="h-1 w-full cursor-pointer appearance-none rounded-lg bg-slate-800 accent-cyan-400"
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-[#0B3D91]"
               />
             </div>
           </div>
@@ -84,3 +84,4 @@ export default function SimulationSettings({
     </>
   );
 }
+

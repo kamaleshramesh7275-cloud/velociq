@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { SimulationContext } from './context/SimulationContext';
 import { FleetProvider, useFleet } from './context/FleetContext';
 import FleetManager from './pages/FleetManager';
@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import SimulationSettings from './components/SimulationSettings';
-import { GEOFENCE_COORDS } from './components/RouteTracker';
+import { GEOFENCE_COORDS } from './utils/osrmRouting';
 
 import TelemetryPage from './pages/TelemetryPage';
 import NavigationPage from './pages/NavigationPage';
@@ -16,6 +16,9 @@ import MaintenancePage from './pages/MaintenancePage';
 import DriverSafetyPage from './pages/DriverSafetyPage';
 import SecurityPage from './pages/SecurityPage';
 import EngineTwinPage from './pages/EngineTwinPage';
+import SimulatorPage from './pages/SimulatorPage';
+import LivingDigitalTwinPage from './pages/LivingDigitalTwinPage';
+import CommandBar from './components/CommandBar';
 import { 
   calculateLimpHomeSpeed, 
   calculateKineticStopPenalty, 
@@ -143,6 +146,11 @@ function SimulationWrapper() {
     return () => clearInterval(interval);
   }, []);
 
+  const speedRef = React.useRef(telemetry.speed);
+  useEffect(() => {
+    speedRef.current = telemetry.speed;
+  }, [telemetry.speed]);
+
   // GLOSA Traffic Light Simulator Tick (1 second interval)
   useEffect(() => {
     if (!isConnected || securityState.isImmobilized) return;
@@ -151,7 +159,7 @@ function SimulationWrapper() {
       setTrafficSignal((prev) => {
         let newTime = prev.timeRemainingSec - 1;
         let newPhase = prev.phase;
-        let newDistance = Math.max(0, prev.distanceMeters - (telemetry.speed / 3.6));
+        let newDistance = Math.max(0, prev.distanceMeters - (speedRef.current / 3.6));
 
         if (newTime <= 0) {
           if (prev.phase === 'GREEN') {
@@ -182,7 +190,8 @@ function SimulationWrapper() {
     }, 1000);
 
     return () => clearInterval(signalInterval);
-  }, [isConnected, securityState.isImmobilized, telemetry.speed]);
+  }, [isConnected, securityState.isImmobilized]);
+
 
   const handleSimulateStop = () => {
     const massKg = VEHICLE_PHYSICS_PROFILES[vehicleProfile]?.massKg || 1400;
@@ -477,7 +486,8 @@ function SimulationWrapper() {
     }, 300);
 
     return () => clearInterval(interval);
-  }, [isConnected, vehicleProfile, speedLimit, aiAgentOptimized]);
+  }, [isConnected, vehicleProfile, speedLimit, aiAgentOptimized, securityState.isImmobilized]);
+
 
   const handleClearDTCs = () => setActiveDTCs([]);
   const handleTriggerDTC = () => setActiveDTCs(['P0300']);
@@ -568,9 +578,24 @@ function SimulationWrapper() {
       setIsLimpModeActive,
       trafficSignal,
       kineticWaste,
-      handleSimulateStop
+      handleSimulateStop,
+      activeDTCs,
+      setActiveDTCs,
+      handleClearDTCs,
+      handleTriggerDTC,
+      spiffsCount,
+      fuelPrice,
+      setFuelPrice,
+      tripHistory,
+      handleEndTrip,
+      handleClearHistory,
+      handleServicePart,
+      handleTrainingComplete,
+      modelState,
+      setModelState,
+      vehicleProfile
     }}>
-      <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)]">
+      <div className="flex h-screen overflow-hidden bg-[#F4F6F9] text-[#0A0F1D]">
         <Sidebar 
           isConnected={isConnected} 
           setIsConnected={setIsConnected} 
@@ -579,87 +604,113 @@ function SimulationWrapper() {
           setSpeedLimit={setSpeedLimit} 
         />
         <div className="relative flex-1 overflow-auto flex flex-col">
-          {/* Top bar across all dashboards */}
-          <div className="border-b border-slate-800 bg-slate-900/40 px-8 py-4 backdrop-blur z-40">
-            <div className="flex items-center justify-between max-w-6xl mx-auto">
-              <h2 className="text-xl font-semibold text-white">Monitoring: {activeVehicle?.name} ({activeVehicle?.licensePlate})</h2>
-              <div className="text-sm text-slate-400">Assigned: {activeDriver?.name || 'Unassigned'}</div>
-            </div>
-          </div>
+          {/* Top Command Bar */}
+          <CommandBar
+            isConnected={isConnected}
+            spiffsCount={spiffsCount}
+            weather={weather}
+            aiThoughtLogs={aiThoughtLogs}
+            activeDTCs={activeDTCs}
+            securityState={securityState}
+          />
           
-          <Routes>
-            <Route path="/dashboard" element={
-              <TelemetryPage 
-                telemetry={telemetry} 
-                isConnected={isConnected} 
-                speedLimit={speedLimit} 
-                activeDTCs={activeDTCs} 
-                spiffsCount={spiffsCount}
-                handleClearDTCs={handleClearDTCs} 
-                handleTriggerDTC={handleTriggerDTC} 
-                weather={weather}
-                fuelPrice={fuelPrice}
-              />
-            } />
-            <Route path="/navigation" element={
-              <NavigationPage 
-                telemetry={telemetry} 
-                weather={weather} 
-                tripHistory={tripHistory} 
-                aiNavigatorEnabled={aiNavigatorEnabled}
-                setAiNavigatorEnabled={setAiNavigatorEnabled}
-                aiThoughtLogs={aiThoughtLogs}
-                handleEndTrip={handleEndTrip}
-                handleClearHistory={handleClearHistory}
-                isLimpModeActive={isLimpModeActive}
-                onToggleLimpMode={() => setIsLimpModeActive(!isLimpModeActive)}
-                trafficSignal={trafficSignal}
-                kineticWaste={kineticWaste}
-                onSimulateStop={handleSimulateStop}
-              />
-            } />
-            <Route path="/analytics" element={
-              <AnalyticsPage 
-                telemetry={telemetry} 
-                tripHistory={tripHistory} 
-                modelState={modelState} 
-                setModelState={setModelState}
-                aiAgentOptimized={aiAgentOptimized}
-                setAiAgentOptimized={setAiAgentOptimized}
-                fuelPrice={fuelPrice}
-                setFuelPrice={setFuelPrice}
-              />
-            } />
-            <Route path="/maintenance" element={
-              <MaintenancePage 
-                telemetry={telemetry} 
-                handleServicePart={handleServicePart} 
-                modelState={modelState} 
-                aiMechanicEnabled={aiMechanicEnabled}
-                setAiMechanicEnabled={setAiMechanicEnabled}
-              />
-            } />
-            <Route path="/engine-twin" element={
-              <EngineTwinPage 
-                telemetry={telemetry} 
-                onTriggerDTC={handleTriggerDTC} 
-                onClearDTCs={handleClearDTCs} 
-                activeDTCs={activeDTCs} 
-              />
-            } />
-            <Route path="/fleet" element={<FleetManager />} />
-            <Route path="/safety" element={<DriverSafetyPage />} />
-            <Route path="/security" element={<SecurityPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <Outlet />
         </div>
       </div>
     </SimulationContext.Provider>
   );
 }
 
+function TelemetryPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <TelemetryPage 
+      telemetry={sim.telemetry} 
+      isConnected={sim.isConnected} 
+      speedLimit={sim.speedLimit} 
+      activeDTCs={sim.activeDTCs} 
+      spiffsCount={sim.spiffsCount}
+      handleClearDTCs={sim.handleClearDTCs} 
+      handleTriggerDTC={sim.handleTriggerDTC} 
+      weather={sim.weather}
+      fuelPrice={sim.fuelPrice}
+      aiThoughtLogs={sim.aiThoughtLogs}
+    />
+  );
+}
+
+function SimulatorPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return <SimulatorPage telemetry={sim.telemetry} />;
+}
+
+function NavigationPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <NavigationPage 
+      telemetry={sim.telemetry} 
+      weather={sim.weather} 
+      tripHistory={sim.tripHistory} 
+      aiNavigatorEnabled={sim.aiNavigatorEnabled}
+      setAiNavigatorEnabled={sim.setAiNavigatorEnabled}
+      aiThoughtLogs={sim.aiThoughtLogs}
+      handleEndTrip={sim.handleEndTrip}
+      handleClearHistory={sim.handleClearHistory}
+      isLimpModeActive={sim.isLimpModeActive}
+      onToggleLimpMode={() => sim.setIsLimpModeActive(!sim.isLimpModeActive)}
+      trafficSignal={sim.trafficSignal}
+      kineticWaste={sim.kineticWaste}
+      onSimulateStop={sim.handleSimulateStop}
+    />
+  );
+}
+
+function AnalyticsPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <AnalyticsPage 
+      telemetry={sim.telemetry} 
+      tripHistory={sim.tripHistory} 
+      modelState={sim.modelState} 
+      setModelState={sim.setModelState}
+      aiAgentOptimized={sim.aiAgentOptimized}
+      setAiAgentOptimized={sim.setAiAgentOptimized}
+      fuelPrice={sim.fuelPrice}
+      setFuelPrice={sim.setFuelPrice}
+      handleTrainingComplete={sim.handleTrainingComplete}
+      isConnected={sim.isConnected}
+      speedLimit={sim.speedLimit}
+    />
+  );
+}
+
+function MaintenancePageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <MaintenancePage 
+      telemetry={sim.telemetry} 
+      handleServicePart={sim.handleServicePart} 
+      modelState={sim.modelState} 
+      aiMechanicEnabled={sim.aiMechanicEnabled}
+      setAiMechanicEnabled={sim.setAiMechanicEnabled}
+    />
+  );
+}
+
+function EngineTwinPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <EngineTwinPage 
+      telemetry={sim.telemetry} 
+      onTriggerDTC={sim.handleTriggerDTC} 
+      onClearDTCs={sim.handleClearDTCs} 
+      activeDTCs={sim.activeDTCs} 
+    />
+  );
+}
+
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') === 'true');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') !== 'false');
 
   const handleLogin = () => {
     sessionStorage.setItem('velociq_logged_in', 'true');
@@ -668,7 +719,7 @@ export default function App() {
 
   useEffect(() => {
     const syncAuthState = () => {
-      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') === 'true');
+      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') !== 'false');
     };
 
     window.addEventListener('storage', syncAuthState);
@@ -680,13 +731,21 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-        <Route
-          path="/*"
-          element={
-            isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />
-          }
-        />
+        <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
+          <Route path="/dashboard" element={<TelemetryPageWrapper />} />
+          <Route path="/simulator" element={<SimulatorPageWrapper />} />
+          <Route path="/navigation" element={<NavigationPageWrapper />} />
+          <Route path="/analytics" element={<AnalyticsPageWrapper />} />
+          <Route path="/digital-twin" element={<LivingDigitalTwinPage />} />
+          <Route path="/maintenance" element={<MaintenancePageWrapper />} />
+          <Route path="/engine-twin" element={<EngineTwinPageWrapper />} />
+          <Route path="/fleet" element={<FleetManager />} />
+          <Route path="/safety" element={<DriverSafetyPage />} />
+          <Route path="/security" element={<SecurityPage />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
       </Routes>
     </FleetProvider>
   );
 }
+

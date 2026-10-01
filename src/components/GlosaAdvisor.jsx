@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import { calculateGlosaTarget } from '../utils/speedMileagePhysics';
+import { Card, SectionLabel, StatusPill } from './ui';
+import { PulseDot, AlertTriangleIcon } from './icons';
 
 export default function GlosaAdvisor({
   speed = 55,
@@ -7,7 +9,7 @@ export default function GlosaAdvisor({
   kineticWaste = { stopsCount: 2, energyDissipatedKj: 388, fuelWastedLiters: 0.052, costPenalty: 4.94 },
   onSimulateStop
 }) {
-  const { distanceMeters, phase, timeRemainingSec } = trafficSignal;
+  const { distanceMeters, phase, timeRemainingSec, cycleTotal = 30 } = trafficSignal;
 
   const glosa = useMemo(() => {
     return calculateGlosaTarget(distanceMeters, phase, timeRemainingSec, speed);
@@ -15,18 +17,70 @@ export default function GlosaAdvisor({
 
   const speedDiff = Math.round(speed - glosa.targetSpeedKmh);
 
+  // SVG Circular countdown ring metrics
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const progressRatio = Math.min(1, Math.max(0, timeRemainingSec / Math.max(1, cycleTotal)));
+  const strokeDashoffset = circumference - progressRatio * circumference;
+
+  const phaseColor = {
+    GREEN: {
+      text: 'text-emerald-400',
+      stroke: '#10B981',
+      bg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/30',
+      glow: 'shadow-[0_0_15px_rgba(16,185,129,0.3)]',
+      badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    },
+    YELLOW: {
+      text: 'text-amber-400',
+      stroke: '#F59E0B',
+      bg: 'bg-amber-500/10',
+      border: 'border-amber-500/30',
+      glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+      badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    },
+    RED: {
+      text: 'text-rose',
+      stroke: '#F43F5E',
+      bg: 'bg-rose/10',
+      border: 'border-rose/30',
+      glow: 'shadow-[0_0_15px_rgba(244,63,94,0.3)]',
+      badge: 'bg-rose/15 text-rose border-rose/30'
+    }
+  }[phase] || {
+    text: 'text-emerald-400',
+    stroke: '#10B981',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/30',
+    glow: '',
+    badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+  };
+
+  const plainLanguageAdvice = useMemo(() => {
+    if (glosa.targetSpeedKmh >= 50 && phase === 'GREEN') {
+      return `Coast at ${glosa.targetSpeedKmh} km/h to pass on GREEN`;
+    }
+    if (phase === 'RED') {
+      return `Slow down to ${glosa.targetSpeedKmh} km/h to arrive as light turns GREEN`;
+    }
+    return `Maintain ${glosa.targetSpeedKmh} km/h for green-wave arrival`;
+  }, [glosa.targetSpeedKmh, phase]);
+
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+    <div className="bg-white rounded-2xl border border-line shadow-sm p-5 relative overflow-hidden">
+      <div className="racing-stripe" />
+      
       {/* Header */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm uppercase tracking-[0.35em] text-emerald-400 font-semibold">GLOSA & Kinetic Recovery</p>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
-              Green-Wave Sync
+            <SectionLabel label="GLOSA & GREEN-WAVE ADVISORY" />
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${phaseColor.badge}`}>
+              Signal: {phase}
             </span>
           </div>
-          <h2 className="text-xl font-bold text-white">Traffic Signal Speed Advisory</h2>
+          <h3 className="text-lg font-bold text-text-hi font-heading mt-1">Traffic Signal Speed Synchronization</h3>
         </div>
 
         {/* Quick Simulation Trigger */}
@@ -34,159 +88,90 @@ export default function GlosaAdvisor({
           <button
             type="button"
             onClick={onSimulateStop}
-            className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-bold transition flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-[#D7263D] hover:bg-red-100 text-xs font-bold transition flex items-center gap-1.5"
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            Simulate Braking Stop
+            <AlertTriangleIcon className="w-3.5 h-3.5" />
+            Simulate Stop
           </button>
         )}
       </div>
 
-      {/* Main Signal Display & Advisory HUD */}
-      <div className="grid gap-4 sm:grid-cols-[1fr_1.8fr] rounded-2xl border border-slate-800 bg-slate-950/70 p-4 mb-5">
-        {/* Visual Traffic Signal Box */}
-        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-900/90 border border-slate-800/80">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Upcoming Signal</div>
-          
-          {/* Signal Housing */}
-          <div className="flex gap-2.5 bg-slate-950 p-2.5 rounded-2xl border border-slate-800 shadow-inner">
-            {/* Red Light */}
-            <div className={`h-8 w-8 rounded-full transition-all duration-300 flex items-center justify-center ${
-              phase === 'RED' 
-                ? 'bg-rose-500 shadow-lg shadow-rose-500/80 ring-2 ring-rose-400 scale-105' 
-                : 'bg-rose-950/40 opacity-30'
+      {/* Main Signal Housing (The Permitted Dark Element) + Advisory */}
+      <div className="grid gap-4 sm:grid-cols-[140px_1fr] rounded-2xl border border-line bg-slate-50 p-4 mb-4">
+        
+        {/* Real Traffic Signal Housing (Small Dark Element) */}
+        <div className="flex flex-col items-center justify-center">
+          <div className="bg-[#0A0F1C] border-2 border-slate-700/80 rounded-2xl p-2.5 shadow-bezel flex flex-col items-center gap-2 w-20">
+            {/* Red Light Lens */}
+            <div className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
+              phase === 'RED'
+                ? 'bg-[#D7263D] border-red-400 shadow-[0_0_12px_#D7263D] animate-pulse'
+                : 'bg-red-950/40 border-red-900/60 opacity-40'
             }`}>
-              {phase === 'RED' && <span className="text-[10px] font-black text-slate-950">{timeRemainingSec}</span>}
+              {phase === 'RED' && <span className="text-[10px] font-mono font-bold text-white tabular-nums">{timeRemainingSec}s</span>}
             </div>
 
-            {/* Yellow Light */}
-            <div className={`h-8 w-8 rounded-full transition-all duration-300 flex items-center justify-center ${
-              phase === 'YELLOW' 
-                ? 'bg-amber-400 shadow-lg shadow-amber-400/80 ring-2 ring-amber-300 scale-105' 
-                : 'bg-amber-950/40 opacity-30'
+            {/* Amber Light Lens */}
+            <div className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
+              phase === 'YELLOW'
+                ? 'bg-[#F2A900] border-amber-300 shadow-[0_0_12px_#F2A900] animate-pulse'
+                : 'bg-amber-950/40 border-amber-900/60 opacity-40'
             }`}>
-              {phase === 'YELLOW' && <span className="text-[10px] font-black text-slate-950">{timeRemainingSec}</span>}
+              {phase === 'YELLOW' && <span className="text-[10px] font-mono font-bold text-slate-900 tabular-nums">{timeRemainingSec}s</span>}
             </div>
 
-            {/* Green Light */}
-            <div className={`h-8 w-8 rounded-full transition-all duration-300 flex items-center justify-center ${
-              phase === 'GREEN' 
-                ? 'bg-emerald-400 shadow-lg shadow-emerald-400/80 ring-2 ring-emerald-300 scale-105' 
-                : 'bg-emerald-950/40 opacity-30'
+            {/* Green Light Lens */}
+            <div className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
+              phase === 'GREEN'
+                ? 'bg-[#0F9D6B] border-emerald-400 shadow-[0_0_12px_#0F9D6B] animate-pulse'
+                : 'bg-emerald-950/40 border-emerald-900/60 opacity-40'
             }`}>
-              {phase === 'GREEN' && <span className="text-[10px] font-black text-slate-950">{timeRemainingSec}</span>}
+              {phase === 'GREEN' && <span className="text-[10px] font-mono font-bold text-white tabular-nums">{timeRemainingSec}s</span>}
             </div>
           </div>
 
-          <div className="mt-3 text-center">
-            <span className="font-mono text-base font-extrabold text-white">{Math.round(distanceMeters)}</span>
-            <span className="text-xs text-slate-400 ml-1">meters ahead</span>
+          <div className="mt-2 text-center font-mono text-xs text-text-mid">
+            <span className="text-[#0B3D91] font-bold tabular-nums">{Math.round(distanceMeters)}</span>m ahead
           </div>
         </div>
 
-        {/* Advisory Target Speed HUD */}
+        {/* Advisory Target Speed + Plain Language Advice */}
         <div className="flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400">Recommended GLOSA Velocity</span>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-emerald-300 font-mono">
-                  {glosa.targetSpeedKmh}
-                </span>
-                <span className="text-sm font-semibold text-slate-400">km/h target</span>
-                <span className="text-xs text-slate-500 font-mono">
-                  (Current: {Math.round(speed)} km/h)
-                </span>
-              </div>
-            </div>
-
-            <div className="text-right">
-              {speedDiff > 5 ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-300 border border-amber-500/30">
-                  Ease Throttle: -{speedDiff} km/h
-                </span>
-              ) : speedDiff < -5 ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 px-2.5 py-1 text-xs font-bold text-cyan-300 border border-cyan-500/30">
-                  Accelerate: +{Math.abs(speedDiff)} km/h
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 border border-emerald-500/30">
-                  Optimal Speed Locked
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Coaching Guidance Bar */}
-          <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3 flex items-start gap-2.5">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <rect x="7" y="2" width="10" height="20" rx="3" strokeWidth="2" />
-                <circle cx="12" cy="7" r="1.5" fill="currentColor" />
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-                <circle cx="12" cy="17" r="1.5" fill="currentColor" />
-              </svg>
-            </div>
-            <div className="text-xs text-slate-200">
-              <span className="font-bold text-white">AI Speed Guidance: </span>
-              {glosa.coastingAdvisory}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Kinetic Stop-and-Go Tax Panel */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Kinetic Energy & Stop-and-Go Mileage Penalty
-            </h3>
-            <p className="text-[11px] text-slate-500">
-              Physical energy dissipated into brake pad friction: <span className="font-mono">Ek = 0.5 · m · v²</span>
-            </p>
+            <span className="text-[10px] uppercase font-mono text-text-lo">RECOMMENDED GLOSA SPEED</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-3xl font-bold font-mono text-[#0B3D91] tabular-nums">
+                {glosa.targetSpeedKmh}
+              </span>
+              <span className="text-xs text-text-mid font-mono">km/h target</span>
+              <span className="text-xs text-text-lo font-mono">
+                (Live: {Math.round(speed)} km/h)
+              </span>
+            </div>
           </div>
-          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            Efficiency Drain
-          </span>
+
+          {/* Plain language banner */}
+          <div className={`mt-3 rounded-xl border p-3 flex items-center gap-2 ${
+            phase === 'GREEN' 
+              ? 'bg-emerald-50 border-emerald-200 text-[#047857]'
+              : phase === 'YELLOW'
+                ? 'bg-amber-50 border-amber-200 text-[#B45309]'
+                : 'bg-red-50 border-red-200 text-[#D7263D]'
+          }`}>
+            <span className="font-heading font-bold text-xs">
+              {plainLanguageAdvice}
+            </span>
+          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Full Stops Logged</span>
-            <div className="mt-1 text-xl font-black text-white font-mono">
-              {kineticWaste.stopsCount}
-            </div>
-            <p className="text-[10px] text-slate-500">Avoidable red light stops</p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Kinetic Energy Lost</span>
-            <div className="mt-1 text-xl font-black text-amber-300 font-mono">
-              {kineticWaste.energyDissipatedKj} <span className="text-xs font-normal text-slate-400">kJ</span>
-            </div>
-            <p className="text-[10px] text-slate-500">Dissipated into brake heat</p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Re-acceleration Fuel</span>
-            <div className="mt-1 text-xl font-black text-rose-400 font-mono">
-              {kineticWaste.fuelWastedLiters.toFixed(3)} <span className="text-xs font-normal text-slate-400">L</span>
-            </div>
-            <p className="text-[10px] text-slate-500">Burned to regain momentum</p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Monetary Penalty</span>
-            <div className="mt-1 text-xl font-black text-rose-300 font-mono">
-              ₹{kineticWaste.costPenalty.toFixed(2)}
-            </div>
-            <p className="text-[10px] text-slate-500">Direct wallet loss</p>
-          </div>
-        </div>
       </div>
-    </section>
+
+      {/* Kinetic Stop Tax summary */}
+      <div className="flex items-center justify-between text-xs font-mono border-t border-line pt-3 text-slate-800">
+        <span className="text-slate-600 font-semibold">Kinetic Stops: <strong className="text-slate-900 font-bold">{kineticWaste?.stopsCount ?? 0}</strong></span>
+        <span>Dissipated: <strong className="text-[#B45309] font-bold">{Math.round(kineticWaste?.energyDissipatedKj ?? 0)} kJ</strong></span>
+        <span>Fuel Tax: <strong className="text-[#D7263D] font-bold">{Number(kineticWaste?.fuelWastedLiters ?? 0).toFixed(3)} L</strong></span>
+      </div>
+    </div>
   );
 }

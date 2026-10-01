@@ -5,6 +5,7 @@ import L from 'leaflet';
 import { 
   DEFAULT_ROAD_COORDINATES, 
   DEFAULT_MANEUVERS, 
+  GEOFENCE_COORDS,
   interpolateRoadPosition,
   fetchLiveOsrmRoute
 } from '../utils/osrmRouting';
@@ -41,32 +42,25 @@ const createPoiMarkerIcon = (type) => {
 const gasIcon = createPoiMarkerIcon('gas');
 const evIcon = createPoiMarkerIcon('ev');
 
-// Custom Directional Vehicle Glyph with dynamic rotation
+// Custom Directional Vehicle Glyph with dynamic rotation and top-view car SVG
 const createVehicleMarkerIcon = (headingDeg = 0) => {
   return L.divIcon({
     className: 'custom-vehicle-marker',
     html: `
-      <div style="transform: rotate(${headingDeg}deg); transition: transform 0.4s ease-out;" class="relative flex items-center justify-center w-10 h-10 -ml-5 -mt-5">
-        <div class="absolute inset-0 rounded-full bg-cyan-400/25 animate-ping"></div>
-        <div class="relative w-8 h-8 rounded-full bg-slate-950 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.8)] flex items-center justify-center">
-          <svg class="w-4 h-4 text-cyan-300" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
+      <div style="transform: rotate(${headingDeg}deg); transition: transform 0.4s ease-out;" class="relative flex items-center justify-center w-12 h-12 -ml-6 -mt-6">
+        <div class="absolute inset-0 rounded-full bg-[#1E88E5]/25 animate-ping"></div>
+        <div class="relative w-9 h-9 rounded-full bg-white border-2 border-[#0B3D91] shadow-md flex items-center justify-center">
+          <svg class="w-5 h-5 text-[#0B3D91]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
           </svg>
         </div>
       </div>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
+    iconSize: [48, 48],
+    iconAnchor: [24, 24]
   });
 };
 
-// Geofence Coordinates (Delhi Fleet Corridor: Connaught Place to IGI Airport)
-export const GEOFENCE_COORDS = [
-  [28.6450, 77.0800],
-  [28.6450, 77.2400],
-  [28.5400, 77.2400],
-  [28.5400, 77.0800],
-];
 
 // Static POIs
 const POI_STATIONS = [
@@ -92,17 +86,16 @@ function MapUpdater({ center }) {
     map.invalidateSize();
     const t1 = setTimeout(() => map.invalidateSize(), 150);
     const t2 = setTimeout(() => map.invalidateSize(), 450);
-    const t3 = setTimeout(() => map.invalidateSize(), 1200);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
     };
   }, [map]);
 
   useEffect(() => {
-    if (center && center[0] && center[1]) {
-      map.setView(center, map.getZoom(), { animate: true });
+    if (center && typeof center[0] === 'number' && typeof center[1] === 'number' && !isNaN(center[0]) && !isNaN(center[1])) {
+      // Use panTo with animate: false to prevent Leaflet animation queue thrashing at 300ms intervals
+      map.panTo(center, { animate: false });
     }
   }, [center?.[0], center?.[1], map]);
 
@@ -110,13 +103,14 @@ function MapUpdater({ center }) {
 }
 
 // Available Map Tile Providers (100% Free, Zero Key, No Watermark)
+// Default is Esri World Light Gray Canvas per showroom precision spec
 const TILE_PROVIDERS = {
-  esri_dark: {
-    id: 'esri_dark',
-    name: 'Esri Dark Canvas (No Key)',
-    tag: 'Default Clean Dark',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    refUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+  esri_light: {
+    id: 'esri_light',
+    name: 'Esri World Light Gray Canvas',
+    tag: 'Default Light Gray',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    refUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
     maxZoom: 16,
     attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
   },
@@ -151,15 +145,29 @@ const TILE_PROVIDERS = {
 };
 
 export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather }) {
-  const { startName, endName, progress, lat, lon, etaMinutes, heading = 0 } = route;
+  const { 
+    startName = 'Fleet Hub (Connaught Place)', 
+    endName = 'Airport Cargo Terminal (IGI)', 
+    progress = 0, 
+    lat = 28.6315, 
+    lon = 77.2167, 
+    etaMinutes = 30, 
+    heading = 0 
+  } = route || {};
 
-  // Map Provider selection state (auto-migrate legacy carto_ to esri_dark)
+  const safeLat = typeof lat === 'number' && !isNaN(lat) ? lat : 28.6315;
+  const safeLon = typeof lon === 'number' && !isNaN(lon) ? lon : 77.2167;
+  const safeSpeed = typeof speed === 'number' && !isNaN(speed) ? speed : 0;
+  const safeProgress = typeof progress === 'number' && !isNaN(progress) ? progress : 0;
+  const safeEta = typeof etaMinutes === 'number' && !isNaN(etaMinutes) ? etaMinutes : 30;
+
+  // Map Provider selection state (defaults to esri_light)
   const [activeProvider, setActiveProvider] = useState(() => {
     const saved = localStorage.getItem('velociq_map_provider');
-    if (!saved || saved.startsWith('carto_')) {
-      return 'esri_dark';
+    if (saved && TILE_PROVIDERS[saved]) {
+      return saved;
     }
-    return saved;
+    return 'esri_light';
   });
 
   const [tomtomApiKey, setTomtomApiKey] = useState(() => {
@@ -223,8 +231,8 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
     setShowKeyModal(false);
   };
 
-  // Resolve tile layer URL
-  const selectedTileConfig = TILE_PROVIDERS[activeProvider] || TILE_PROVIDERS.carto_dark;
+  // Resolve tile layer URL safely with fallback
+  const selectedTileConfig = (activeProvider && TILE_PROVIDERS[activeProvider]) || TILE_PROVIDERS.esri_light;
   const tileUrl = selectedTileConfig.requiresKey
     ? selectedTileConfig.url.replace('{key}', tomtomApiKey)
     : selectedTileConfig.url;
@@ -232,40 +240,43 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
   const vehicleMarkerIcon = useMemo(() => createVehicleMarkerIcon(heading), [heading]);
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur flex flex-col min-h-[580px]">
+    <section className="rounded-2xl border border-line bg-white p-5 shadow-sm flex flex-col min-h-[580px]">
       {/* Header */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-400 font-semibold">Real-Road GPS Telematics</p>
-          <h2 className="text-xl font-bold text-white">Live Expressway Navigation</h2>
+          <p className="text-xs uppercase tracking-wider text-[#0B3D91] font-heading font-bold">Real-Road GPS Telematics</p>
+          <h2 className="text-xl font-bold text-text-hi font-heading">Live Expressway Navigation</h2>
         </div>
 
         {/* Top Controls: Tile Switcher & Status */}
         <div className="flex items-center gap-2">
-          {/* Map Layer Switcher Dropdown */}
-          <div className="relative">
-            <select
-              value={activeProvider}
-              onChange={(e) => handleSelectProvider(e.target.value)}
-              className="appearance-none rounded-xl border border-slate-700 bg-slate-950/90 px-3 py-1.5 pr-8 text-xs font-bold text-slate-200 outline-none transition focus:border-cyan-400 cursor-pointer"
-            >
-              <option value="esri_dark">Esri Dark Canvas (No Key)</option>
-              <option value="osm">OpenStreetMap Standard (No Key)</option>
-              <option value="esri_satellite">Esri Satellite (No Key)</option>
-              <option value="tomtom">TomTom Traffic Flow (Key)</option>
-            </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+          {/* Map Layer Segmented Control (Light / Street / Satellite / Traffic) */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-line">
+            {[
+              { id: 'esri_light', label: 'Light' },
+              { id: 'osm', label: 'Street' },
+              { id: 'esri_satellite', label: 'Satellite' },
+              { id: 'tomtom', label: 'Traffic' }
+            ].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectProvider(p.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  activeProvider === p.id
+                    ? 'bg-white text-[#0B3D91] shadow-xs border border-slate-200'
+                    : 'text-text-mid hover:text-text-hi'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
           <button
             type="button"
             onClick={() => setShowKeyModal(true)}
             title="Configure Map API Keys"
-            className="p-2 rounded-xl border border-slate-700 bg-slate-950 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/40 transition"
+            className="p-1.5 rounded-xl border border-line bg-slate-50 text-text-lo hover:text-[#0B3D91] hover:border-slate-300 transition"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -273,52 +284,59 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
             </svg>
           </button>
 
-          <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+          <div className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
             speed > 0 
-              ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20 animate-pulse' 
-              : 'bg-slate-800 text-slate-400 border-slate-700/30'
+              ? 'bg-emerald-50 text-[#0F9D6B] border-emerald-200 animate-pulse' 
+              : 'bg-slate-100 text-text-lo border-line'
           }`}>
             {speed > 0 ? 'Transit Active' : 'Stationary'}
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5 space-y-4 flex flex-col flex-1 relative overflow-hidden">
-        {/* Turn-by-Turn Navigation Strip */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800/60 pb-3 z-10 relative">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-md">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400">Next Maneuver ({currentManeuver.distMeters}m)</span>
-              <p className="text-sm font-extrabold text-white">
-                {currentManeuver.instruction}
-              </p>
+      <div className="rounded-2xl border border-line bg-slate-50 p-0 flex flex-col flex-1 relative overflow-hidden">
+        {/* Map Container with Floating Glass Turn-by-Turn HUD */}
+        <div className="flex-1 rounded-2xl overflow-hidden relative border border-line z-0 min-h-[500px] h-[520px] w-full">
+          
+          {/* FLOATING TURN-BY-TURN HUD (WHITE CARD DIRECTLY OVER MAP) */}
+          <div className="absolute top-3 inset-x-3 z-[1000] pointer-events-none flex justify-center">
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-line px-5 py-3 rounded-2xl shadow-xl flex items-center justify-between gap-6 max-w-xl w-full">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-50 text-[#0B3D91] border border-blue-200 shadow-xs">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-base font-bold font-mono text-[#0B3D91] tabular-nums">
+                      {currentManeuver.distMeters}m
+                    </span>
+                    <span className="text-[10px] uppercase font-mono text-slate-700 font-bold">AHEAD</span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-900 line-clamp-1">
+                    {currentManeuver.instruction}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right pl-4 border-l border-line shrink-0">
+                <span className="text-[9px] uppercase font-mono text-slate-700 font-bold block">DYNAMIC ETA</span>
+                <span className="text-xs font-bold font-mono text-[#047857] tabular-nums">
+                  {progress >= 100 
+                    ? 'ARRIVED' 
+                    : speed === 0 
+                      ? 'PAUSED' 
+                      : `${Math.ceil(etaMinutes)} MINS`}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="sm:text-right">
-            <span className="text-[10px] uppercase text-slate-500 tracking-wider">Dynamic ETA</span>
-            <div className="text-base font-black text-cyan-300 font-mono mt-0.5">
-              {progress >= 100 
-                ? 'Arrived at Destination' 
-                : speed === 0 
-                  ? 'Paused (Stationary)' 
-                  : `${Math.ceil(etaMinutes)} mins remaining`
-              }
-            </div>
-          </div>
-        </div>
-
-        {/* Map Container */}
-        <div className="flex-1 rounded-xl overflow-hidden relative border border-slate-800/40 z-0 min-h-[420px] h-[420px] w-full">
           <MapContainer 
-            center={[lat, lon]} 
+            center={[safeLat, safeLon]} 
             zoom={13} 
-            style={{ height: '100%', width: '100%', minHeight: '420px' }} 
+            style={{ height: '100%', width: '100%', minHeight: '500px' }} 
             zoomControl={false}
           >
             {/* Active Base Map Layer */}
@@ -331,12 +349,12 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
               className="map-tiles"
             />
 
-            {/* Clean Esri Dark Canvas Reference Labels Layer */}
-            {activeProvider === 'esri_dark' && (
+            {/* Clean Esri Light Canvas Reference Labels Layer */}
+            {activeProvider === 'esri_light' && (
               <TileLayer
-                url={TILE_PROVIDERS.esri_dark.refUrl}
+                url={TILE_PROVIDERS.esri_light.refUrl}
                 maxZoom={16}
-                opacity={0.85}
+                opacity={0.9}
               />
             )}
 
@@ -348,84 +366,87 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
               />
             )}
 
-            {/* Geofence Boundary */}
-            <Polygon positions={GEOFENCE_COORDS} pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.08, weight: 1.5, dashArray: '5 5' }} />
-
-            {/* Complete Planned Road Polyline (Cyan Glow) */}
-            <Polyline 
-              positions={roadCoordinates} 
-              pathOptions={{ color: '#06b6d4', weight: 4, opacity: 0.45 }} 
+            {/* Geofence Boundary as Red Dashed Polygon */}
+            <Polygon 
+              positions={GEOFENCE_COORDS} 
+              pathOptions={{ color: '#D7263D', fillColor: '#D7263D', fillOpacity: 0.06, weight: 2, dashArray: '6 6' }} 
             />
 
-            {/* Traveled Highway Polyline (Solid Emerald) */}
+            {/* Planned Road Route (Blue) */}
+            <Polyline 
+              positions={roadCoordinates} 
+              pathOptions={{ color: '#0B3D91', weight: 4.5, opacity: 0.85 }} 
+            />
+
+            {/* Traveled Highway Polyline (Solid British Racing Green) */}
             {traveledPath.length > 1 && (
               <Polyline 
                 positions={traveledPath} 
-                pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
+                pathOptions={{ color: '#0F9D6B', weight: 5, opacity: 0.95 }} 
               />
             )}
-            
+
             {/* Nearby POIs */}
             {visiblePOIs.map(poi => (
               <Marker key={poi.id} position={[poi.lat, poi.lon]} icon={poi.type === 'gas' ? gasIcon : evIcon}>
                 <Popup>
                   <div className="font-sans text-xs">
-                    <span className="font-bold">{poi.name}</span>
-                    <span className="block text-slate-500 font-mono uppercase text-[9px] mt-0.5">{poi.type} Station</span>
+                    <span className="font-bold text-text-hi">{poi.name}</span>
+                    <span className="block text-text-mid font-mono uppercase text-[9px] mt-0.5">{poi.type} Station</span>
                   </div>
                 </Popup>
               </Marker>
             ))}
 
             {/* Directional Heading Vehicle Marker */}
-            <Marker position={[lat, lon]} icon={vehicleMarkerIcon}>
+            <Marker position={[safeLat, safeLon]} icon={vehicleMarkerIcon}>
               <Popup>
                 <div className="font-sans text-xs p-1">
                   <div className="font-bold text-slate-900">Fleet Transport Unit #01</div>
-                  <div className="text-cyan-700 font-mono font-semibold mt-1">Velocity: {speed.toFixed(1)} km/h</div>
+                  <div className="text-[#0B3D91] font-mono font-semibold mt-1">Velocity: {safeSpeed.toFixed(1)} km/h</div>
                   <div className="text-slate-600 font-mono text-[10px]">Bearing: {heading}° Azimuth</div>
-                  <div className="text-emerald-700 font-bold mt-1">Route Progress: {Math.round(progress)}%</div>
+                  <div className="text-[#0F9D6B] font-bold mt-1">Route Progress: {Math.round(safeProgress)}%</div>
                 </div>
               </Popup>
             </Marker>
 
-            <MapUpdater center={[lat, lon]} />
+            <MapUpdater center={[safeLat, safeLon]} />
           </MapContainer>
         </div>
 
         {/* Live HUD telemetry over map */}
         <div className="absolute bottom-5 left-5 right-5 pointer-events-none z-10">
           <div className="grid grid-cols-3 gap-2 mb-2 pointer-events-auto">
-            <div className="rounded-xl bg-slate-900/85 backdrop-blur border border-slate-800/60 p-2.5">
-              <p className="text-[9px] uppercase font-bold text-slate-400">Position</p>
-              <p className="mt-0.5 font-mono text-xs font-bold text-slate-200 truncate">
-                {lat.toFixed(4)}°N, {lon.toFixed(4)}°E
+            <div className="rounded-xl bg-white/95 backdrop-blur border border-line p-2.5 shadow-sm">
+              <p className="text-[9px] uppercase font-bold text-slate-700">Position</p>
+              <p className="mt-0.5 font-mono text-xs font-bold text-slate-900 truncate">
+                {safeLat.toFixed(4)}°N, {safeLon.toFixed(4)}°E
               </p>
             </div>
-            <div className="rounded-xl bg-slate-900/85 backdrop-blur border border-slate-800/60 p-2.5">
-              <p className="text-[9px] uppercase font-bold text-slate-400">Bearing</p>
-              <p className="mt-0.5 font-mono text-xs font-bold text-cyan-300">
+            <div className="rounded-xl bg-white/95 backdrop-blur border border-line p-2.5 shadow-sm">
+              <p className="text-[9px] uppercase font-bold text-slate-700">Bearing</p>
+              <p className="mt-0.5 font-mono text-xs font-bold text-[#0B3D91]">
                 {heading}° ({heading <= 45 || heading >= 315 ? 'North' : heading <= 135 ? 'East' : heading <= 225 ? 'South' : 'West'})
               </p>
             </div>
-            <div className="rounded-xl bg-slate-900/85 backdrop-blur border border-slate-800/60 p-2.5">
-              <p className="text-[9px] uppercase font-bold text-slate-400">Road Corridor</p>
-              <p className="mt-0.5 font-mono text-xs font-bold text-emerald-400 truncate">
-                {currentManeuver.street}
+            <div className="rounded-xl bg-white/95 backdrop-blur border border-line p-2.5 shadow-sm">
+              <p className="text-[9px] uppercase font-bold text-slate-700">Road Corridor</p>
+              <p className="mt-0.5 font-mono text-xs font-bold text-[#047857] truncate">
+                {currentManeuver?.street || 'Expressway'}
               </p>
             </div>
           </div>
 
           {/* Progress bar visualizer */}
-          <div className="bg-slate-900/85 backdrop-blur p-2.5 rounded-xl pointer-events-auto border border-slate-800/60">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="bg-white/95 backdrop-blur p-2.5 rounded-xl pointer-events-auto border border-line shadow-sm">
+            <div className="flex items-center justify-between text-xs text-slate-700 font-medium mb-1">
               <span>Expressway progress:</span>
-              <span className="font-semibold text-slate-200">{Math.round(progress)}% ({ (progress * 0.248).toFixed(1) } / 24.8 km)</span>
+              <span className="font-bold text-slate-900 font-mono">{Math.round(safeProgress)}% ({ (safeProgress * 0.248).toFixed(1) } / 24.8 km)</span>
             </div>
-            <div className="relative h-2.5 w-full rounded-full bg-slate-800 overflow-hidden">
+            <div className="relative h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
               <div 
-                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
-                style={{ width: `${progress}%` }}
+                className="h-full rounded-full bg-gradient-to-r from-[#0B3D91] to-[#047857] transition-all duration-300"
+                style={{ width: `${safeProgress}%` }}
               />
             </div>
           </div>
@@ -434,17 +455,18 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
 
       {/* Free API Key Configuration Modal */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-white p-6 shadow-2xl relative overflow-hidden">
+            <div className="racing-stripe" />
+            <div className="flex items-center justify-between border-b border-line pb-4">
               <div>
-                <h3 className="text-lg font-bold text-white">Live Fleet Map & Traffic Settings</h3>
-                <p className="text-xs text-slate-400">Configure map tile providers and free developer keys.</p>
+                <h3 className="text-lg font-bold text-slate-900 font-heading">Live Fleet Map & Traffic Settings</h3>
+                <p className="text-xs text-slate-700 font-medium">Configure map tile providers and free developer keys.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowKeyModal(false)}
-                className="rounded-full bg-slate-800 p-2 text-slate-400 hover:text-white"
+                className="rounded-full bg-slate-100 p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -452,14 +474,14 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-xs text-slate-300">
-              <div className="rounded-xl bg-slate-950 p-3 border border-slate-800">
-                <span className="font-bold text-cyan-400">Default Keyless Provider: </span>
-                <span>CartoDB Dark Matter & OpenStreetMap operate with 100% free unlimited requests without any key.</span>
+            <div className="mt-4 space-y-4 text-xs text-slate-800">
+              <div className="rounded-xl bg-blue-50/60 p-3.5 border border-blue-200">
+                <span className="font-bold text-[#0B3D91]">Default Keyless Provider: </span>
+                <span className="text-slate-700">CartoDB Voyager & OpenStreetMap operate with 100% free unlimited requests without any key.</span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1" htmlFor="tomtom-key">
+                <label className="block text-xs font-bold text-slate-900 mb-1.5" htmlFor="tomtom-key">
                   TomTom Developer Key (For Live Traffic Congestion Flow)
                 </label>
                 <input
@@ -468,26 +490,26 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
                   placeholder="Paste your free TomTom key here..."
                   value={tomtomApiKey}
                   onChange={(e) => setTomtomApiKey(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs text-white outline-none focus:border-cyan-400 font-mono"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-[#0B3D91] focus:ring-1 focus:ring-[#0B3D91] font-mono shadow-xs"
                 />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Get a free key at <a href="https://developer.tomtom.com/" target="_blank" rel="noreferrer" className="text-cyan-400 underline">developer.tomtom.com</a> (2,500 free calls/day, no credit card required).
+                <p className="mt-1.5 text-[11px] text-slate-600">
+                  Get a free key at <a href="https://developer.tomtom.com/" target="_blank" rel="noreferrer" className="text-[#0B3D91] font-semibold underline">developer.tomtom.com</a> (2,500 free calls/day, no credit card required).
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setShowKeyModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleSaveTomtomKey(tomtomApiKey)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition shadow-md"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0B3D91] text-white hover:bg-[#093276] transition shadow-sm"
               >
                 Save & Apply
               </button>

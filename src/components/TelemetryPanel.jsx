@@ -1,143 +1,199 @@
-import React, { useMemo } from 'react';
+import React from 'react';
+import { AnalogDial } from './ui/AnalogDial';
+import { WarningLight } from './ui/WarningLight';
+import { PulseDot, ThermometerIcon, WindIcon } from './icons';
 
-const gaugeConfig = [
-  { key: 'speed', label: 'Vehicle Speed', unit: 'km/h', range: [0, 120], colorClass: 'text-cyan-400', glowClass: 'shadow-cyan-500/20' },
-  { key: 'rpm', label: 'Engine RPM', unit: '', range: [700, 6000], colorClass: 'text-fuchsia-500', glowClass: 'shadow-fuchsia-500/20' },
-  { key: 'coolant', label: 'Coolant Temp', unit: '°C', range: [70, 110], colorClass: 'text-amber-500', glowClass: 'shadow-amber-500/20' },
-  { key: 'maf', label: 'MAF Air Flow', unit: 'g/s', range: [2, 25], colorClass: 'text-emerald-400', glowClass: 'shadow-emerald-500/20' },
-  { key: 'fuel', label: 'Fuel Level', unit: '%', range: [0, 100], colorClass: 'text-rose-500', glowClass: 'shadow-rose-500/20' },
-];
+export default function TelemetryPanel({
+  telemetry = {},
+  isConnected = true,
+  speedLimit = 90,
+  activeDTCs = [],
+}) {
+  const {
+    speed = 0,
+    rpm = 0,
+    coolant = 85.8,
+    maf = 9.4,
+    voltage = 13.9,
+  } = telemetry;
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
+  const isSpeedOverLimit = speed > speedLimit;
+  const isCoolantAlert = coolant > 100;
+  const isCheckEngine = activeDTCs && activeDTCs.length > 0;
 
-// Circular Gauge Component
-function CircularGauge({ percent, label, value, unit, colorClass, isAlert, glowClass }) {
-  const radius = 54;
-  const circumference = 2 * Math.PI * radius;
-  // Make it a 3/4 circle (gauge style)
-  const strokeDasharray = `${circumference * 0.75} ${circumference * 0.25}`;
-  const strokeDashoffset = circumference * 0.75 - (percent / 100) * (circumference * 0.75);
+  // Approximate gear from speed
+  const currentGear = speed === 0 ? 'P' : speed < 25 ? 'D1' : speed < 45 ? 'D2' : speed < 65 ? 'D3' : speed < 85 ? 'D4' : 'D5';
 
   return (
-    <div className={`relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/70 p-6 ${isAlert ? 'border-rose-500/50 shadow-lg shadow-rose-500/20' : ''}`}>
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-        <span className={`rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] font-bold border ${
-          isAlert 
-            ? 'bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse' 
-            : 'bg-slate-800/50 text-slate-500 border-slate-700/30'
-        }`}>
-          {isAlert ? 'Alert' : 'Nominal'}
-        </span>
-      </div>
+    <div className="relative rounded-3xl p-1 bg-gradient-to-b from-slate-300 via-slate-200 to-slate-400 shadow-[0_8px_30px_rgba(15,23,42,0.15)]">
+      {/* Carbon-fiber Textured Dash Binnacle Behind Bezel (Permitted 10% dark hero) */}
+      <div className="carbon-cluster rounded-[22px] p-6 text-white border border-slate-800/90 shadow-cluster flex flex-col justify-between relative overflow-hidden">
+        
+        {/* Subtle Ambient Reflected Light Across Top of Cluster Glass */}
+        <div className="pointer-events-none absolute -top-12 left-1/4 right-1/4 h-24 bg-gradient-to-b from-white/10 to-transparent rounded-full blur-md" />
 
-      <div className="relative mt-8 flex items-center justify-center">
-        {/* Background Track */}
-        <svg className="w-36 h-36 -rotate-[-135deg] transform" viewBox="0 0 128 128">
-          <circle
-            cx="64"
-            cy="64"
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="12"
-            className="text-slate-800"
-            strokeDasharray={strokeDasharray}
-            strokeLinecap="round"
-          />
-          {/* Active Progress */}
-          <circle
-            cx="64"
-            cy="64"
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="12"
-            className={`${isAlert ? 'text-rose-500' : colorClass} transition-all duration-300 ease-out`}
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            style={{ 
-              filter: `drop-shadow(0 0 8px currentColor)`
-            }}
-          />
-        </svg>
+        {/* Top Status Bar Inside Cluster */}
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-xs uppercase font-bold tracking-[0.2em] text-slate-400">
+              INSTRUMENT BINNACLE
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+          </div>
 
-        {/* Center Text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-3xl font-extrabold tracking-tight ${isAlert ? 'text-rose-400 animate-pulse' : 'text-white'}`}>
-            {value}
-          </span>
-          <span className="text-xs font-medium text-slate-500">{unit}</span>
+          <div className="flex items-center gap-4">
+            {/* Speed Limit Sign (Real European/International Circular Road Sign) */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">SIGN:</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#D7263D] bg-white text-slate-900 font-mono text-[11px] font-black shadow-sm">
+                {speedLimit}
+              </div>
+            </div>
+
+            {/* Live Streaming Indicator */}
+            <div className="flex items-center gap-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 px-2.5 py-1 font-mono text-[10px] text-slate-300">
+              <PulseDot color={isConnected ? 'emerald' : 'amber'} active={true} />
+              <span>{isConnected ? 'CAN-BUS SYNC' : 'OFFLINE'}</span>
+            </div>
+          </div>
         </div>
+
+        {/* Dual Analog Dials & Center Warning Lamp Matrix */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center py-2">
+          {/* Left: Speedometer Dial (Cols 1-5) */}
+          <div className="md:col-span-5 flex flex-col items-center justify-center">
+            <AnalogDial
+              value={speed}
+              min={0}
+              max={140}
+              label="SPEED"
+              unit="km/h"
+              speedLimit={speedLimit}
+              size={230}
+              darkTheme={true}
+              bands={[
+                { from: 0, to: 55, color: '#0B3D91' },
+                { from: 55, to: 65, color: '#0F9D6B' }, // Sweet Spot
+                { from: 65, to: 80, color: '#1E88E5' },
+                { from: 80, to: 100, color: '#F2A900' },
+                { from: 100, to: 140, color: '#D7263D' }, // Redline
+              ]}
+              secondaryReadout={
+                speed >= 55 && speed <= 65 ? 'SWEET SPOT' : isSpeedOverLimit ? 'SPEEDING' : null
+              }
+            />
+          </div>
+
+          {/* Center: Gear Readout & Dashboard Warning Lights (Cols 6-7) */}
+          <div className="md:col-span-2 flex flex-col items-center justify-center py-2 space-y-4">
+            {/* Gear Indicator Window */}
+            <div className="flex flex-col items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 px-4 py-2 shadow-inner">
+              <span className="font-mono text-[8px] uppercase tracking-widest text-slate-400">GEAR</span>
+              <span className="font-mono text-2xl font-black text-white tabular-nums tracking-wide">
+                {currentGear}
+              </span>
+            </div>
+
+            {/* Warning Light Matrix (Illuminates when DTC or issue is triggered) */}
+            <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
+              <WarningLight type="engine" active={isCheckEngine} color="amber" size={22} />
+              <WarningLight type="oil" active={false} color="red" size={22} />
+              <WarningLight type="battery" active={voltage < 12.8} color="red" size={22} />
+              <WarningLight type="coolant" active={isCoolantAlert} color="red" size={22} />
+              <WarningLight type="brake" active={isSpeedOverLimit} color="amber" size={22} />
+              <WarningLight type="abs" active={false} color="amber" size={22} />
+            </div>
+
+            {/* Status Flag */}
+            <span className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded border text-center ${
+              isSpeedOverLimit
+                ? 'bg-[#D7263D]/20 text-[#D7263D] border-[#D7263D]/40'
+                : isCheckEngine
+                ? 'bg-[#F2A900]/20 text-[#F2A900] border-[#F2A900]/40'
+                : 'bg-[#0F9D6B]/20 text-[#0F9D6B] border-[#0F9D6B]/40'
+            }`}>
+              {isSpeedOverLimit ? 'LIMIT EXCEEDED' : isCheckEngine ? 'CHECK ENGINE' : 'POWERTRAIN NOMINAL'}
+            </span>
+          </div>
+
+          {/* Right: Tachometer Dial (Cols 8-12) */}
+          <div className="md:col-span-5 flex flex-col items-center justify-center">
+            <AnalogDial
+              value={rpm}
+              min={0}
+              max={6000}
+              label="TACHOMETER"
+              unit="rpm"
+              majorStep={1000}
+              minorStep={200}
+              size={230}
+              darkTheme={true}
+              bands={[
+                { from: 0, to: 1500, color: '#64748B' },
+                { from: 1500, to: 3200, color: '#0F9D6B' }, // Optimal powerband
+                { from: 3200, to: 4500, color: '#1E88E5' },
+                { from: 4500, to: 5200, color: '#F2A900' },
+                { from: 5200, to: 6000, color: '#D7263D' }, // Redline
+              ]}
+              secondaryReadout={rpm > 4500 ? 'HIGH LOAD' : 'NOMINAL'}
+            />
+          </div>
+        </div>
+
+        {/* Lower Auxiliaries Bar Beneath Gauges */}
+        <div className="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Coolant */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <ThermometerIcon className={`w-4 h-4 ${isCoolantAlert ? 'text-[#D7263D]' : 'text-slate-400'}`} />
+              <div>
+                <span className="font-mono text-[9px] text-slate-400 uppercase block">COOLANT TEMP</span>
+                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                  {coolant.toFixed(1)}°C
+                </span>
+              </div>
+            </div>
+            <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded ${
+              isCoolantAlert ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-emerald-400'
+            }`}>
+              {isCoolantAlert ? 'OVERHEAT' : '85°C NORM'}
+            </span>
+          </div>
+
+          {/* Mass Air Flow */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <WindIcon className="w-4 h-4 text-blue-400" />
+              <div>
+                <span className="font-mono text-[9px] text-slate-400 uppercase block">MASS AIR FLOW</span>
+                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                  {maf.toFixed(1)} g/s
+                </span>
+              </div>
+            </div>
+            <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-blue-300">
+              ECU SENSOR
+            </span>
+          </div>
+
+          {/* Voltage */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
+            <div className="flex items-center gap-2">
+              <PulseDot color="emerald" active={false} />
+              <div>
+                <span className="font-mono text-[9px] text-slate-400 uppercase block">12V BATTERY BUS</span>
+                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                  {voltage.toFixed(2)} V
+                </span>
+              </div>
+            </div>
+            <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
+              CHARGING
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
-  );
-}
-
-export default function TelemetryPanel({ telemetry, isConnected, speedLimit }) {
-  const gauges = useMemo(() =>
-    gaugeConfig.map((gauge) => {
-      const rawValue = telemetry[gauge.key] ?? 0;
-      const [min, max] = gauge.range;
-      const normalized = (rawValue - min) / (max - min);
-      const percent = clamp(Math.round(normalized * 100), 0, 100);
-      
-      const isAlert = 
-        gauge.key === 'coolant' ? rawValue > 102 : 
-        gauge.key === 'fuel' ? rawValue < 15 : 
-        gauge.key === 'speed' ? rawValue > speedLimit : 
-        false;
-
-      const formattedValue = gauge.key === 'rpm' 
-        ? Math.round(rawValue).toLocaleString() 
-        : rawValue.toFixed(gauge.key === 'speed' || gauge.key === 'maf' || gauge.key === 'fuel' ? 1 : 0);
-
-      return { ...gauge, value: formattedValue, percent, isAlert };
-    }),
-    [telemetry, speedLimit]
-  );
-
-  return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Live Telemetry</p>
-          <h2 className="text-xl font-semibold text-white">OBD-II PID Gauges</h2>
-        </div>
-        <div className={`rounded-full px-3 py-1 text-sm font-medium border ${
-          isConnected 
-            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 animate-pulse' 
-            : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
-        }`}>
-          {isConnected ? 'Live stream' : 'Stream frozen'}
-        </div>
-      </div>
-      
-      <div className="relative min-h-[350px]">
-        {/* Frozen Overlay */}
-        {!isConnected && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-slate-950/85 border border-rose-500/20 backdrop-blur-[2px] text-center p-6 transition-all duration-300">
-            <div className="flex items-center gap-3 text-rose-400 text-2xl font-bold tracking-widest uppercase animate-pulse">
-              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-2.828-6.364m0 0a9 9 0 012.828-6.364m2.829 9.192a5 5 0 01-1.414-3.536m0 0a5 5 0 011.414-3.536M3 3l18 18" />
-              </svg>
-              <span>BLE Link Offline</span>
-            </div>
-            <p className="mt-2 text-sm text-slate-400 max-w-sm leading-relaxed">
-              Telemetry pipeline frozen. Reconnect the ESP32 transmitter in the control deck below to resume live ECU broadcast.
-            </p>
-          </div>
-        )}
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {gauges.map((gauge) => (
-            <CircularGauge key={gauge.key} {...gauge} />
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }

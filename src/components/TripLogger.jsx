@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import TripReplayModal from './TripReplayModal';
+import { Card, SectionLabel } from './ui';
+import { PlayIcon } from './icons';
 
 export default function TripLogger({ tripHistory = [], onEndTrip, onClearHistory, activeStats }) {
-  const { duration, distance, avgSpeed, fuelUsed, co2, score } = activeStats;
+  const { duration, distance, avgSpeed, fuelUsed, score } = activeStats;
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'analytics'
   const [selectedTrip, setSelectedTrip] = useState(null);
 
@@ -22,21 +24,23 @@ export default function TripLogger({ tripHistory = [], onEndTrip, onClearHistory
   };
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
+    <div className="bg-white rounded-2xl border border-line shadow-sm p-5 relative overflow-hidden">
+      <div className="racing-stripe" />
+      
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-slate-500">Trip Management</p>
-          <h2 className="text-xl font-semibold text-white">Odometer & Trip Logs</h2>
+          <SectionLabel label="HISTORICAL TELEMETRY LOGS" />
+          <h3 className="text-lg font-bold text-text-hi font-heading mt-1">Odometer & Trip Records</h3>
         </div>
         
         <button
           type="button"
           onClick={onEndTrip}
           disabled={distance === 0}
-          className={`rounded-full px-5 py-2 text-xs font-bold transition duration-300 ${
+          className={`rounded-xl px-4 py-2 text-xs font-bold transition duration-200 ${
             distance > 0 
-              ? 'bg-rose-500 text-slate-950 hover:bg-rose-400' 
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/30'
+              ? 'bg-[#D7263D] text-white shadow-xs hover:bg-[#b81d31]' 
+              : 'bg-slate-100 text-text-lo cursor-not-allowed border border-line'
           }`}
         >
           End Current Trip
@@ -44,92 +48,95 @@ export default function TripLogger({ tripHistory = [], onEndTrip, onClearHistory
       </div>
 
       {/* Active Trip Dashboard Summary */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 mb-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 rounded-xl border border-line bg-slate-50 p-3.5 mb-4">
         <div>
-          <p className="text-xs text-slate-400">Current Trip Odometer</p>
-          <p className="mt-1 text-lg font-bold text-white">{distance.toFixed(2)} km</p>
+          <p className="text-[10px] font-mono uppercase text-slate-700 font-bold">Current Trip Odometer</p>
+          <p className="mt-1 text-base font-bold font-mono text-[#0B3D91] tabular-nums">{Number(distance ?? 0).toFixed(2)} km</p>
         </div>
         <div>
-          <p className="text-xs text-slate-400">Trip Duration</p>
-          <p className="mt-1 text-lg font-bold text-white">{formatDuration(duration)}</p>
+          <p className="text-[10px] font-mono uppercase text-slate-700 font-bold">Trip Duration</p>
+          <p className="mt-1 text-base font-bold font-mono text-slate-900 tabular-nums">{formatDuration(duration || 0)}</p>
         </div>
         <div>
-          <p className="text-xs text-slate-400">Avg Speed</p>
-          <p className="mt-1 text-lg font-bold text-white">{avgSpeed.toFixed(1)} km/h</p>
+          <p className="text-[10px] font-mono uppercase text-slate-700 font-bold">Avg Speed</p>
+          <p className="mt-1 text-base font-bold font-mono text-slate-900 tabular-nums">{Number(avgSpeed ?? 0).toFixed(1)} km/h</p>
         </div>
         <div>
-          <p className="text-xs text-slate-400">Current Fuel Burned</p>
-          <p className="mt-1 text-lg font-bold text-emerald-300">{fuelUsed.toFixed(2)} L</p>
+          <p className="text-[10px] font-mono uppercase text-slate-700 font-bold">Fuel Burned</p>
+          <p className="mt-1 text-base font-bold font-mono text-[#047857] tabular-nums">{Number(fuelUsed ?? 0).toFixed(2)} L</p>
         </div>
       </div>
 
       {/* View Toggle */}
-      <div className="mb-4 flex items-center justify-center gap-2">
-        <button 
-          onClick={() => setViewMode('list')}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === 'list' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-        >
-          Logs List
-        </button>
-        <button 
-          onClick={() => setViewMode('analytics')}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === 'analytics' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-        >
-          Analytics
-        </button>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-line">
+          <button 
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              viewMode === 'list' ? 'bg-white text-[#0B3D91] shadow-xs border border-slate-200' : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            Logs Index
+          </button>
+          <button 
+            onClick={() => setViewMode('analytics')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              viewMode === 'analytics' ? 'bg-white text-[#0B3D91] shadow-xs border border-slate-200' : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            Analytics View
+          </button>
+        </div>
+
+        {viewMode === 'list' && tripHistory.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearHistory}
+            className="text-[10px] uppercase font-mono tracking-wider text-[#D7263D] hover:underline font-bold"
+          >
+            Clear Historical Logs
+          </button>
+        )}
       </div>
 
       {viewMode === 'list' ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-300">Historical Trip Index</h3>
-            {tripHistory.length > 0 && (
-              <button
-                type="button"
-                onClick={onClearHistory}
-                className="text-[10px] uppercase tracking-wider text-rose-400 hover:text-rose-300 font-semibold"
-              >
-                Wipe Logs
-              </button>
-            )}
-          </div>
-
+        <div className="rounded-xl border border-line bg-slate-50 p-3">
           <div className="max-h-60 overflow-y-auto pr-1">
             {tripHistory.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
-                No historical trip data found. End a trip to register a log.
+              <div className="text-center py-8 text-xs text-slate-700 font-mono font-medium">
+                No historical trip data recorded yet. End an active trip to generate a telemetry log.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 font-medium">
-                      <th className="py-2 px-1">Date</th>
-                      <th className="py-2 px-1">Distance</th>
-                      <th className="py-2 px-1">Avg Speed</th>
-                      <th className="py-2 px-1">Fuel Consumed</th>
-                      <th className="py-2 px-1 text-right">Score</th>
+                    <tr className="border-b border-line text-slate-700 font-mono text-[10px] uppercase font-bold">
+                      <th className="py-2 px-2">Date & Time</th>
+                      <th className="py-2 px-2">Distance</th>
+                      <th className="py-2 px-2">Avg Speed</th>
+                      <th className="py-2 px-2">Fuel Used</th>
+                      <th className="py-2 px-2 text-right">Safety Score</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tripHistory.map((trip, idx) => (
                       <tr 
                         key={idx} 
-                        className="border-b border-slate-800/40 hover:bg-slate-900/30 text-slate-300 transition-colors cursor-pointer group relative"
+                        className="border-b border-line/60 hover:bg-white text-slate-800 transition-colors cursor-pointer group"
                         onClick={() => setSelectedTrip(trip)}
                       >
-                        <td className="py-2 px-1 whitespace-nowrap">
-                          {trip.date}
+                        <td className="py-2.5 px-2 whitespace-nowrap font-mono text-slate-900 flex items-center gap-1.5 font-medium">
+                          <span>{trip.date}</span>
                           {trip.path?.length > 0 && (
-                            <span className="ml-2 inline-block rounded bg-cyan-500/20 px-1 py-0.5 text-[8px] uppercase tracking-widest text-cyan-400 opacity-0 transition-opacity group-hover:opacity-100">
-                              ▶ Replay
+                            <span className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[9px] uppercase font-mono tracking-widest text-[#0B3D91] opacity-0 group-hover:opacity-100 transition-opacity font-bold">
+                              <PlayIcon className="w-2.5 h-2.5" /> Replay
                             </span>
                           )}
                         </td>
-                        <td className="py-2 px-1 font-semibold text-white">{trip.distance.toFixed(2)} km</td>
-                        <td className="py-2 px-1">{trip.avgSpeed.toFixed(1)} km/h</td>
-                        <td className="py-2 px-1 text-emerald-400">{trip.fuelUsed.toFixed(2)} L</td>
-                        <td className="py-2 px-1 text-right font-bold text-cyan-400">{Math.round(trip.score)}</td>
+                        <td className="py-2.5 px-2 font-mono text-slate-900 font-medium tabular-nums">{trip.distance.toFixed(2)} km</td>
+                        <td className="py-2.5 px-2 font-mono text-slate-900 font-medium tabular-nums">{trip.avgSpeed.toFixed(1)} km/h</td>
+                        <td className="py-2.5 px-2 font-mono text-[#047857] font-bold tabular-nums">{trip.fuelUsed.toFixed(2)} L</td>
+                        <td className="py-2.5 px-2 text-right font-mono font-bold text-[#0B3D91] tabular-nums">{Math.round(trip.score)} / 100</td>
                       </tr>
                     ))}
                   </tbody>
@@ -145,6 +152,6 @@ export default function TripLogger({ tripHistory = [], onEndTrip, onClearHistory
       {selectedTrip && (
         <TripReplayModal trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
       )}
-    </section>
+    </div>
   );
 }

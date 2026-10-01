@@ -3,31 +3,165 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #020617;
-  color: #f8fafc;
+  color-scheme: light;
+  --bg-base: #F4F6F9;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #EBEEF3;
+  --bg-raised: #F8FAFC;
+  --line: #CBD5E1;
+  --line-light: #E2E8F0;
+  --text-hi: #0A0F1D;
+  --text-mid: #1E293B;
+  --text-lo: #334155;
+
+  --brand-blue: #0B3D91;
+  --brand-red: #D7263D;
+  --accent-green: #047857;
+  --accent-amber: #B45309;
+  --accent-sky: #0284C7;
+  
+  --cluster-bg: #0A0F1C;
+
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-hi);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top, #0f172a 0%, #020617 55%, #020617 100%);
+  background-color: #F4F6F9;
+  background-image: 
+    radial-gradient(circle at 15% 10%, rgba(11, 61, 145, 0.035) 0%, transparent 40%),
+    radial-gradient(circle at 85% 90%, rgba(15, 157, 107, 0.025) 0%, transparent 40%),
+    linear-gradient(rgba(221, 226, 234, 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(221, 226, 234, 0.6) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  overflow-x: hidden;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* Leaflet Container & Tailwind Conflict Overrides */
+/* Headings use automotive Rajdhani / Barlow */
+h1, h2, h3, h4, .font-display {
+  font-family: 'Rajdhani', 'Barlow Semi Condensed', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Force Tabular figures across all numbers and monospace elements to avoid jitter */
+.font-mono,
+[data-tabular-nums="true"],
+.tabular-nums {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+/* Precision Light Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #EBEEF3;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0B3D91;
+}
+
+/* Automotive Design Motifs */
+
+/* 1. Racing stripe: 3px dual-line stripe (blue + red) */
+.racing-stripe {
+  height: 3px;
+  background: linear-gradient(90deg, #0B3D91 0%, #0B3D91 70%, #D7263D 70%, #D7263D 100%);
+}
+
+.racing-stripe-v {
+  position: relative;
+}
+.racing-stripe-v::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #0B3D91 0%, #0B3D91 65%, #D7263D 65%, #D7263D 100%);
+  border-radius: 2px 0 0 2px;
+}
+
+/* 2. Chequered-flag divider */
+.chequered-flag {
+  height: 6px;
+  background-image: 
+    linear-gradient(45deg, #0F172A 25%, transparent 25%), 
+    linear-gradient(-45deg, #0F172A 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #0F172A 75%), 
+    linear-gradient(-45deg, transparent 75%, #0F172A 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 0 3px, 3px -3px, -3px 0px;
+  opacity: 0.18;
+}
+
+/* 3. Subtle Carbon-fiber weave for dark cluster (max 10% dark surface) */
+.carbon-cluster {
+  background-color: #0A0F1C;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+
+/* 4. Chrome bezel gradient */
+.chrome-bezel {
+  border: 1px solid #CBD5E1;
+  background: linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 2px 5px rgba(15, 23, 42, 0.08);
+}
+
+/* 5. Road lane marking dashes */
+.road-lane-bg {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 16px,
+    rgba(221, 226, 234, 0.4) 16px,
+    rgba(221, 226, 234, 0.4) 24px
+  );
+}
+
+/* 6. Tire tread gauge pattern */
+.tire-tread-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(15, 23, 42, 0.08),
+    rgba(15, 23, 42, 0.08) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+}
+
+/* Clean Card Inner Highlight */
+.card-highlight {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+/* Leaflet Container: Light Showroom Grey Map */
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
-  background-color: #020617 !important;
+  background-color: #EAEFF5 !important;
   z-index: 10;
 }
 
-/* Fix Tailwind Preflight 'img { max-width: 100%; height: auto; }' which shatters Leaflet tile layers */
 .leaflet-container img {
   max-width: none !important;
   max-height: none !important;
@@ -44,4 +178,14 @@ body {
 .leaflet-top,
 .leaflet-bottom {
   z-index: 20 !important;
+}
+
+/* Respect user accessibility motion settings */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

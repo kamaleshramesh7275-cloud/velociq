@@ -44,6 +44,14 @@ export const DEFAULT_MANEUVERS = [
   { atProgress: 98, instruction: 'Arrive at Airport Cargo Terminal', type: 'destination', street: 'Terminal Gateway', distMeters: 200 }
 ];
 
+// Geofence Coordinates (Delhi Fleet Corridor: Connaught Place to IGI Airport)
+export const GEOFENCE_COORDS = [
+  [28.6450, 77.0800],
+  [28.6450, 77.2400],
+  [28.5400, 77.2400],
+  [28.5400, 77.0800],
+];
+
 /**
  * Calculates geographic bearing angle (0 - 360 degrees) between two lat/lon coordinates
  */

@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../context/FleetContext';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Card, SectionLabel, StatusPill, SeverityBadge, PlateBadge, CarSilhouette } from '../components/ui';
+import { PulseDot } from '../components/icons';
 
-// Fix for default Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -13,23 +14,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Self-contained Vector SVG vehicle status glyphs (Zero external image dependencies)
-const createStatusMarkerIcon = (status, isMonitored) => {
-  const colorMap = {
-    Active: { border: 'border-emerald-400', bg: 'bg-emerald-400', ping: 'bg-emerald-400/30' },
-    Idle: { border: 'border-amber-400', bg: 'bg-amber-400', ping: '' },
-    Maintenance: { border: 'border-rose-400', bg: 'bg-rose-400', ping: '' },
-  };
-  const cfg = colorMap[status] || colorMap.Idle;
-  const monitoredClass = isMonitored ? 'ring-4 ring-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.9)]' : 'shadow-lg';
+// Custom SVG pins: green with ping for Active, amber for Idle, red for Maintenance, blue ring for monitored
+const createFleetMarkerIcon = (status, isMonitored) => {
+  const cfg = {
+    Active: { border: '#0F9D6B', bg: '#0F9D6B', ping: true },
+    Idle: { border: '#F2A900', bg: '#F2A900', ping: false },
+    Maintenance: { border: '#D7263D', bg: '#D7263D', ping: false }
+  }[status] || { border: '#0B3D91', bg: '#0B3D91', ping: false };
+
+  const monitoredRing = isMonitored ? 'ring-4 ring-[#0B3D91] shadow-md' : 'shadow-xs';
 
   return L.divIcon({
-    className: 'custom-fleet-marker',
+    className: 'custom-fleet-pin',
     html: `
       <div class="relative flex items-center justify-center w-8 h-8 -ml-4 -mt-4">
-        ${cfg.ping ? `<div class="absolute inset-0 rounded-full ${cfg.ping} animate-ping"></div>` : ''}
-        <div class="relative w-7 h-7 rounded-full bg-slate-950 border-2 ${cfg.border} ${monitoredClass} flex items-center justify-center">
-          <div class="w-3 h-3 rounded-full ${cfg.bg}"></div>
+        ${cfg.ping ? `<div class="absolute inset-0 rounded-full animate-ping opacity-60" style="background-color: ${cfg.bg};"></div>` : ''}
+        <div class="relative w-7 h-7 rounded-full bg-white border-2 ${monitoredRing} flex items-center justify-center" style="border-color: ${cfg.border};">
+          <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${cfg.bg};"></div>
         </div>
       </div>
     `,
@@ -38,33 +39,55 @@ const createStatusMarkerIcon = (status, isMonitored) => {
   });
 };
 
-// Automatic Leaflet container dimension invalidator
-function MapFix({ center }) {
+function MapFlyToHandler({ selectedCoords }) {
   const map = useMap();
   useEffect(() => {
     map.invalidateSize();
-    const t1 = setTimeout(() => map.invalidateSize(), 150);
-    const t2 = setTimeout(() => map.invalidateSize(), 500);
-    const t3 = setTimeout(() => map.invalidateSize(), 1200);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
   }, [map]);
 
   useEffect(() => {
-    if (center && center[0] && center[1]) {
-      map.setView(center, map.getZoom(), { animate: true });
+    if (selectedCoords && selectedCoords[0] && selectedCoords[1]) {
+      map.flyTo(selectedCoords, 14, { duration: 1.2 });
     }
-  }, [center?.[0], center?.[1], map]);
+  }, [selectedCoords, map]);
 
   return null;
 }
 
 export default function FleetManager() {
-  const { vehicles, drivers, assignments, assignDriver, removeDriver, setVehicleStatus, monitorVehicle, activeVehicleId } = useFleet();
+  const { 
+    vehicles, 
+    drivers, 
+    assignments, 
+    assignDriver, 
+    removeDriver, 
+    setVehicleStatus, 
+    monitorVehicle, 
+    activeVehicleId 
+  } = useFleet();
   const navigate = useNavigate();
+
+  // Status Filter state: 'ALL', 'Active', 'Idle', 'Maintenance'
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [selectedVehicleId, setSelectedVehicleId] = useState(activeVehicleId || (vehicles[0]?.id));
+
+  // Compute summary stats (5 tiles per spec)
+  const activeCount = vehicles.filter((v) => v.status === 'Active').length;
+  const idleCount = vehicles.filter((v) => v.status === 'Idle').length;
+  const maintenanceCount = vehicles.filter((v) => v.status === 'Maintenance').length;
+  const totalFleetKm = vehicles.reduce((sum, v) => sum + (v.mileage || 0), 0);
+  const fleetKmToday = Math.round(totalFleetKm * 0.012);
+
+  // Filtered vehicles roster
+  const filteredVehicles = useMemo(() => {
+    if (statusFilter === 'ALL') return vehicles;
+    return vehicles.filter((v) => v.status === statusFilter);
+  }, [vehicles, statusFilter]);
+
+  // Selected vehicle for fly-to and detail card
+  const selectedVehicle = useMemo(() => {
+    return vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
+  }, [vehicles, selectedVehicleId]);
 
   const handleMonitor = (vehicleId) => {
     monitorVehicle(vehicleId);
@@ -72,187 +95,316 @@ export default function FleetManager() {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)] p-8 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex items-center justify-between">
+    <div className="flex-1 overflow-auto bg-[#F4F6F9] p-6 md:p-8 text-text-hi">
+      <div className="mx-auto max-w-7xl flex flex-col gap-6">
+        
+        {/* Page Header */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-line">
           <div>
-            <h1 className="text-3xl font-bold text-white">Fleet Garage</h1>
-            <p className="mt-2 text-slate-400">Manage vehicles, monitor statuses, and assign drivers.</p>
-          </div>
-          <div className="flex gap-4">
-            <div className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-2 text-center">
-              <div className="text-sm text-slate-400">Total Vehicles</div>
-              <div className="text-xl font-semibold text-white">{vehicles.length}</div>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-2 text-center">
-              <div className="text-sm text-slate-400">Active Drivers</div>
-              <div className="text-xl font-semibold text-white">{Object.keys(assignments).length} / {drivers.length}</div>
-            </div>
+            <SectionLabel label="FLEET OPERATIONS & GARAGE" />
+            <h1 className="text-2xl md:text-3xl font-bold text-text-hi font-heading tracking-tight mt-1">
+              Fleet Garage & Asset Monitor
+            </h1>
+            <p className="mt-1 text-xs text-text-mid">
+              Regional vehicle tracking, driver pairings, real-time status diagnostics, and telemetry switching.
+            </p>
           </div>
         </header>
 
-        {/* Multi-Vehicle Map */}
-        <div className="mb-8 overflow-hidden rounded-3xl border border-slate-700 bg-slate-800/40 shadow-2xl backdrop-blur">
-          <div className="border-b border-slate-700 bg-slate-900/50 px-6 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Live Fleet Map</h2>
-              <p className="text-xs text-slate-400">Real-time GPS telemetry of all regional fleet assets</p>
+        {/* 5 Header Summary KPI Tiles per Prompt Specification */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="bg-white rounded-2xl border border-line p-4 shadow-sm relative overflow-hidden">
+            <div className="racing-stripe" />
+            <span className="text-[10px] font-mono uppercase text-slate-700 font-bold">TOTAL VEHICLES</span>
+            <div className="text-2xl font-bold font-mono text-[#0B3D91] tabular-nums mt-1">
+              {vehicles.length} <span className="text-xs font-semibold text-slate-600">Units</span>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Active</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Idle</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400"></span> Maintenance</span>
-            </div>
+            <p className="text-[10px] font-mono text-[#0B3D91] font-bold mt-0.5">100% Connected</p>
           </div>
-          <div className="h-[440px] w-full relative">
-            <MapContainer 
-              center={[28.6200, 77.2050]} 
-              zoom={13} 
-              style={{ height: '100%', width: '100%', minHeight: '440px' }}
-              zoomControl={true}
-            >
-              <MapFix center={[28.6200, 77.2050]} />
-              {/* Clean Dark Canvas Basemap (100% Free, Zero Key, No Watermark) */}
-              <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={16}
-                attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
-              />
-              <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={16}
-                opacity={0.85}
-              />
-              {vehicles.map(v => {
-                const isMonitored = v.id === activeVehicleId;
-                const icon = createStatusMarkerIcon(v.status, isMonitored);
-                return (
-                  <Marker key={v.id} position={[v.lat || 28.6139, v.lon || 77.2090]} icon={icon}>
-                    <Popup>
-                      <div className="font-sans text-xs p-1">
-                        <strong className="text-sm font-bold text-slate-900">{v.name}</strong><br />
-                        <span className="font-mono text-slate-600 font-semibold">{v.licensePlate}</span><br />
-                        <span className="text-slate-500">Status: </span>
-                        <span className={`font-bold ${v.status === 'Active' ? 'text-emerald-600' : v.status === 'Idle' ? 'text-amber-600' : 'text-rose-600'}`}>
-                          {v.status}
-                        </span><br />
-                        {isMonitored && <div className="mt-1 font-bold text-cyan-600">Currently Monitored in Telemetry</div>}
-                        {!isMonitored && (
-                          <button 
-                            onClick={(e) => { e.preventDefault(); handleMonitor(v.id); }}
-                            className="mt-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 font-semibold px-3 py-1.5 text-xs text-white shadow-sm transition"
-                          >
-                            Monitor Live
-                          </button>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              })}
-            </MapContainer>
+
+          <div className="bg-white rounded-2xl border border-line p-4 shadow-sm relative overflow-hidden">
+            <div className="racing-stripe" />
+            <span className="text-[10px] font-mono uppercase text-slate-700 font-bold">ACTIVE NOW</span>
+            <div className="text-2xl font-bold font-mono text-[#047857] tabular-nums mt-1">
+              {activeCount} <span className="text-xs font-semibold text-slate-600">In Transit</span>
+            </div>
+            <p className="text-[10px] font-mono text-slate-700 font-medium mt-0.5">{((activeCount / vehicles.length) * 100).toFixed(0)}% Fleet Active</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-line p-4 shadow-sm relative overflow-hidden">
+            <div className="racing-stripe" />
+            <span className="text-[10px] font-mono uppercase text-slate-700 font-bold">IDLE IN LOT</span>
+            <div className="text-2xl font-bold font-mono text-[#B45309] tabular-nums mt-1">
+              {idleCount} <span className="text-xs font-semibold text-slate-600">Standby</span>
+            </div>
+            <p className="text-[10px] font-mono text-[#B45309] font-medium mt-0.5">Ready for Dispatch</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-line p-4 shadow-sm relative overflow-hidden">
+            <div className="racing-stripe" />
+            <span className="text-[10px] font-mono uppercase text-slate-700 font-bold">IN MAINTENANCE</span>
+            <div className="text-2xl font-bold font-mono text-[#D7263D] tabular-nums mt-1">
+              {maintenanceCount} <span className="text-xs font-semibold text-slate-600">Depot</span>
+            </div>
+            <p className="text-[10px] font-mono text-[#D7263D] font-medium mt-0.5">Service Bay Queue</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-line p-4 shadow-sm relative overflow-hidden">
+            <div className="racing-stripe" />
+            <span className="text-[10px] font-mono uppercase text-slate-700 font-bold">FLEET KM TODAY</span>
+            <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums mt-1">
+              {fleetKmToday.toLocaleString()} <span className="text-xs font-semibold text-slate-600">km</span>
+            </div>
+            <p className="text-[10px] font-mono text-slate-700 font-medium mt-0.5">Logged Telemetry</p>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
-          {/* Vehicles Grid */}
-          <div className="flex flex-col gap-6">
-            <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-3">Vehicle Roster</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {vehicles.map((v) => {
+        {/* 2-Column Split Workspace: Roster Left (cols 1-6) + Regional Map Right (cols 7-12) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Left Column: Filterable Vehicle Roster */}
+          <div className="lg:col-span-6 flex flex-col gap-4">
+            
+            {/* Filter Chips Bar styled as Gear Selector */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-line">
+                {[
+                  { id: 'ALL', label: 'All' },
+                  { id: 'Active', label: 'Active' },
+                  { id: 'Idle', label: 'Idle' },
+                  { id: 'Maintenance', label: 'Service' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusFilter(tab.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      statusFilter === tab.id
+                        ? 'bg-white text-[#0B3D91] shadow-xs border border-slate-200'
+                        : 'text-text-mid hover:text-text-hi'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs font-mono text-text-lo">
+                {filteredVehicles.length} of {vehicles.length} assets
+              </span>
+            </div>
+
+            {/* Scrollable Vehicle List */}
+            <div className="flex flex-col gap-3 max-h-[620px] overflow-y-auto pr-1">
+              {filteredVehicles.map((v) => {
+                const isSelected = selectedVehicle?.id === v.id;
+                const isMonitored = activeVehicleId === v.id;
                 const driverId = assignments[v.id];
                 const driver = drivers.find((d) => d.id === driverId);
+                const carProfile = v.profile || (v.type === 'Heavy Truck' ? 'truck' : v.type === 'SUV' ? 'suv' : 'sedan');
 
                 return (
-                  <div key={v.id} className="flex flex-col rounded-2xl border border-slate-700 bg-slate-800/40 p-5 backdrop-blur transition hover:border-cyan-500/30 hover:bg-slate-800/60">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-medium text-white">{v.name}</h3>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium border ${
-                            v.status === 'Active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' :
-                            v.status === 'Idle' ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' :
-                            'border-rose-500/30 bg-rose-500/10 text-rose-300'
-                          }`}>
-                            {v.status}
-                          </span>
+                  <div
+                    key={v.id}
+                    onClick={() => setSelectedVehicleId(v.id)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer bg-white relative overflow-hidden ${
+                      isSelected
+                        ? 'border-[#0B3D91] shadow-md ring-1 ring-[#0B3D91]/20'
+                        : 'border-line hover:border-slate-300 shadow-xs'
+                    }`}
+                  >
+                    {isSelected && <div className="racing-stripe-v" />}
+
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        {/* Car Silhouette Side Perspective */}
+                        <div className="w-16 h-8 bg-slate-50 border border-line rounded-xl flex items-center justify-center p-1 shrink-0">
+                          <CarSilhouette profile={carProfile} view="side" className="w-14 h-7 text-[#0B3D91]" />
                         </div>
-                        <p className="mt-1 text-sm text-slate-400">{v.type} • {v.licensePlate} • {v.mileage.toLocaleString()} mi</p>
+
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-text-hi font-heading">{v.name}</h3>
+                            {isMonitored && (
+                              <span className="text-[9px] font-mono uppercase bg-blue-50 text-[#0B3D91] border border-blue-200 px-1.5 py-0.5 rounded-full font-bold">
+                                Cockpit Active
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs font-mono text-text-mid mt-1 flex flex-wrap items-center gap-2">
+                            <PlateBadge plate={v.licensePlate} country="IND" />
+                            <span>•</span>
+                            <span className="tabular-nums font-semibold">{v.mileage.toLocaleString()} km</span>
+                            <span>•</span>
+                            <span className="text-text-lo">{v.type}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Pill */}
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border shrink-0 ${
+                        v.status === 'Active' ? 'bg-emerald-50 text-[#0F9D6B] border-emerald-200' :
+                        v.status === 'Idle' ? 'bg-amber-50 text-[#B45309] border-amber-200' :
+                        'bg-red-50 text-[#D7263D] border-red-200'
+                      }`}>
+                        {v.status}
+                      </span>
+                    </div>
+
+                    {/* Driver Assignment & Monitor Button */}
+                    <div className="mt-3 pt-3 border-t border-line flex items-center justify-between gap-3">
+                      <div className="flex-1 max-w-xs">
+                        <select
+                          className="w-full rounded-xl border border-line bg-slate-50 px-2.5 py-1.5 text-xs text-text-hi font-mono focus:border-[#0B3D91] outline-none cursor-pointer"
+                          value={driverId || ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              assignDriver(v.id, e.target.value);
+                              setVehicleStatus(v.id, 'Active');
+                            } else {
+                              removeDriver(v.id);
+                              setVehicleStatus(v.id, 'Idle');
+                            }
+                          }}
+                        >
+                          <option value="">-- No Driver Assigned --</option>
+                          {drivers.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} (Rating: {d.rating} / 5.0)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMonitor(v.id);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                          isMonitored
+                            ? 'bg-[#0B3D91] text-white shadow-xs'
+                            : 'bg-slate-100 text-text-hi border border-line hover:bg-[#0B3D91] hover:text-white'
+                        }`}
+                      >
+                        {isMonitored ? 'In Cockpit' : 'Monitor Live'}
+                      </button>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+
+          {/* Right Column: Regional Fleet Map with Floating Detail Card */}
+          <div className="lg:col-span-6 flex flex-col gap-4">
+            
+            <div className="relative rounded-2xl overflow-hidden border border-line shadow-sm h-[620px] w-full bg-slate-100">
+              
+              {/* Map Layer with Esri World Light Gray Canvas */}
+              <MapContainer
+                center={[selectedVehicle?.lat || 28.6200, selectedVehicle?.lon || 77.2050]}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={false}
+              >
+                <MapFlyToHandler selectedCoords={[selectedVehicle?.lat || 28.6200, selectedVehicle?.lon || 77.2050]} />
+                
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                />
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
+                  opacity={0.85}
+                />
+
+                {vehicles.map((v) => {
+                  const isMonitored = v.id === activeVehicleId;
+                  const isSelected = v.id === selectedVehicle?.id;
+                  const icon = createFleetMarkerIcon(v.status, isMonitored || isSelected);
+
+                  return (
+                    <Marker
+                      key={v.id}
+                      position={[v.lat || 28.6139, v.lon || 77.2090]}
+                      icon={icon}
+                      eventHandlers={{
+                        click: () => setSelectedVehicleId(v.id)
+                      }}
+                    />
+                  );
+                })}
+              </MapContainer>
+
+              {/* Floating White Detail Card of Selected Vehicle */}
+              {selectedVehicle && (
+                <div className="absolute top-4 left-4 right-4 z-[1000] pointer-events-none">
+                  <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-line p-4 rounded-2xl shadow-xl flex flex-col gap-3 relative overflow-hidden">
+                    <div className="racing-stripe" />
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-3 w-3 rounded-full" style={{
+                          backgroundColor: selectedVehicle.status === 'Active' ? '#0F9D6B' : selectedVehicle.status === 'Idle' ? '#F2A900' : '#D7263D'
+                        }} />
+                        <div>
+                          <h4 className="text-sm font-bold text-text-hi font-heading">{selectedVehicle.name}</h4>
+                          <span className="text-xs font-mono text-text-mid">{selectedVehicle.licensePlate}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold uppercase border ${
+                          selectedVehicle.status === 'Active' ? 'bg-emerald-50 text-[#0F9D6B] border-emerald-200' :
+                          selectedVehicle.status === 'Idle' ? 'bg-amber-50 text-[#B45309] border-amber-200' :
+                          'bg-red-50 text-[#D7263D] border-red-200'
+                        }`}>
+                          {selectedVehicle.status}
+                        </span>
+
+                        <button
+                          onClick={() => handleMonitor(selectedVehicle.id)}
+                          className="px-3 py-1 rounded-xl bg-[#0B3D91] text-white font-bold text-xs shadow-xs hover:bg-[#093276]"
+                        >
+                          Switch Cockpit
+                        </button>
                       </div>
                     </div>
 
-                    <div className="mt-6 flex flex-1 flex-col justify-end">
-                      <label className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Assigned Driver</label>
-                      <select
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                        value={driverId || ''}
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            assignDriver(v.id, e.target.value);
-                            setVehicleStatus(v.id, 'Active');
-                          } else {
-                            removeDriver(v.id);
-                            setVehicleStatus(v.id, 'Idle');
-                          }
-                        }}
-                      >
-                        <option value="">-- No Driver Assigned --</option>
-                        {drivers.map(d => (
-                          <option key={d.id} value={d.id}>{d.name} (Rating: {d.rating} / 5.0)</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="mt-5 border-t border-slate-700 pt-5">
-                      <button
-                        onClick={() => handleMonitor(v.id)}
-                        disabled={!driver}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Monitor Live Telemetry
-                      </button>
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-line text-xs font-mono">
+                      <div>
+                        <span className="text-[10px] text-text-lo block">GPS COORDINATES</span>
+                        <span className="text-text-hi tabular-nums font-semibold">
+                          {selectedVehicle.lat?.toFixed(4)}, {selectedVehicle.lon?.toFixed(4)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-text-lo block">ASSIGNED DRIVER</span>
+                        <span className="text-[#0B3D91] font-semibold">
+                          {drivers.find((d) => d.id === assignments[selectedVehicle.id])?.name || 'Unassigned'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-text-lo block">ODOMETER</span>
+                        <span className="text-text-hi tabular-nums font-semibold">
+                          {selectedVehicle.mileage.toLocaleString()} km
+                        </span>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+              )}
 
-          {/* Drivers Sidebar List */}
-          <div className="flex flex-col gap-6">
-            <h2 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-3">Available Drivers</h2>
-            <div className="flex flex-col gap-3">
-              {drivers.map(d => {
-                const assignedVehicle = vehicles.find(v => assignments[v.id] === d.id);
-                return (
-                  <div key={d.id} className="flex items-center gap-4 rounded-xl border border-slate-700 bg-slate-800/40 p-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-sm font-bold text-cyan-400">
-                      {d.avatar}
-                    </div>
-                    <div className="flex-1 truncate">
-                      <div className="truncate font-medium text-slate-200">{d.name}</div>
-                      <div className="truncate text-xs text-slate-400">Rating: {d.rating} ⭐ • Exp: {d.experience}</div>
-                    </div>
-                    {assignedVehicle ? (
-                      <span className="rounded-lg bg-emerald-500/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-emerald-400">
-                        Assigned
-                      </span>
-                    ) : (
-                      <span className="rounded-lg bg-slate-700 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                        Available
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
             </div>
+
           </div>
 
         </div>
+
       </div>
     </div>
   );

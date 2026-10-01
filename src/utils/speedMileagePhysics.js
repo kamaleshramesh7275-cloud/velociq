@@ -40,6 +40,17 @@ export const VEHICLE_PHYSICS_PROFILES = {
     optimalSpeedKmh: 58,
     peakMileageKmL: 14.8,
     tankCapacityLiters: 65
+  },
+  truck: {
+    name: 'Heavy Truck',
+    massKg: 3200,
+    cd: 0.45,
+    frontalAreaM2: 3.5,
+    baseRollingResistance: 0.020,
+    idleFuelRateLPerHr: 1.80,
+    optimalSpeedKmh: 55,
+    peakMileageKmL: 10.5,
+    tankCapacityLiters: 90
   }
 };
 
@@ -171,7 +182,12 @@ export function calculateAeroDragTax(currentSpeedKmh, profileKey = 'sedan', opti
     excessCostPer100Km,
     currentAeroDragPct: currentStats.aeroDragPct,
     currentDragPowerKw: currentStats.dragPowerKw,
-    currentDragForceN: currentStats.dragForceN
+    dragPowerKw: currentStats.dragPowerKw,
+    currentDragForceN: currentStats.dragForceN,
+    dragForceN: currentStats.dragForceN,
+    dragHp: (currentStats.dragPowerKw || 0) * 1.34102,
+    fuelMultiplier: 1 + (efficiencyLossPct || 0) / 100,
+    costPenaltyPer100Km: excessCostPer100Km
   };
 }
 
@@ -323,7 +339,9 @@ export function calculateKineticStopPenalty(initialSpeedKmh, finalSpeedKmh = 0, 
 
   return {
     energyKj: Math.round(energyKj),
+    totalEnergyDissipatedKj: Math.round(energyKj),
     fuelWastedLiters: Math.round(fuelWastedLiters * 1000) / 1000,
+    extraFuelLiters: Math.round(fuelWastedLiters * 1000) / 1000,
     costPenalty: Math.round(fuelWastedLiters * 95 * 100) / 100
   };
 }

@@ -1,169 +1,247 @@
-import { Link, useNavigate } from 'react-router-dom';
-
-const features = [
-  {
-    title: 'Real-Time Telemetry',
-    description: 'Track RPM, speed, coolant, and throttle through a live dashboard that feels like a real vehicle command center.',
-    icon: (
-      <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    )
-  },
-  {
-    title: 'Autonomous Routing AI',
-    description: 'Our AI Navigator dynamically optimizes routes based on real-time weather and traffic, reducing delays and increasing fleet safety.',
-    icon: (
-      <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-      </svg>
-    )
-  },
-  {
-    title: 'Predictive Mechanic',
-    description: 'Stop reacting to breakdowns. Our AI Mechanic analyzes degradation rates and predicts parts failure weeks before they occur.',
-    icon: (
-      <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    )
-  }
-];
-
-const metrics = [
-  { label: 'Fuel Saved', value: '32%' },
-  { label: 'Uptime', value: '99.9%' },
-  { label: 'Maintenance Costs', value: '-24%' },
-  { label: 'Vehicles Tracked', value: '10,000+' }
-];
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SpeedArcLogo, DashboardIcon, SimulatorIcon, EngineTwinIcon, NavigationIcon, FleetIcon, AnalyticsIcon, SafetyIcon, SecurityIcon } from './components/icons';
+import { Card, SectionLabel } from './components/ui';
+import { CarSilhouette } from './components/ui/CarSilhouette';
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
+  const handleLaunch = (path = '/dashboard') => {
+    sessionStorage.setItem('velociq_logged_in', 'true');
+    navigate(path);
+  };
+
+  const statCounters = [
+    { value: '2.37x', label: 'Cubic Drag Tax Dissipated', desc: 'Aerodynamic power mitigated from 90 to 120 km/h', color: '#D7263D' },
+    { value: '300ms', label: 'Physics Telemetry Tick', desc: 'High-frequency CAN-bus sensor streaming', color: '#0B3D91' },
+    { value: '100%', label: 'Offline SPIFFS Resiliency', desc: 'Zero data loss during cellular carrier dropouts', color: '#0F9D6B' }
+  ];
+
+  const modules = [
+    {
+      title: 'Cockpit & Dual Gauges',
+      path: '/dashboard',
+      icon: DashboardIcon,
+      tag: 'DRIVE / CLUSTER',
+      desc: 'Authentic 270° dual analog speed & RPM dials in dark carbon binnacle with chrome bezel, aero sweet-spot radar, and ECU diagnostics.'
+    },
+    {
+      title: 'What-If Physics Simulator',
+      path: '/simulator',
+      icon: SimulatorIcon,
+      tag: 'LAB / SIMULATION',
+      desc: 'Cubic aerodynamic drag modeling, gear selector velocity presets, airflow streamline visualization, and 3-tier value of time matrix.'
+    },
+    {
+      title: '3D WebGL Digital Twin',
+      path: '/engine-twin',
+      icon: EngineTwinIcon,
+      tag: 'ENGINE / 3D CAD',
+      desc: 'Full-bleed 65% dark studio stage with 2.0L turbocharged engine, dynamic timeline playback scrubber, and real warning light injection.'
+    },
+    {
+      title: 'Expressway GLOSA & Range',
+      path: '/navigation',
+      icon: NavigationIcon,
+      tag: 'DRIVE / GLOSA',
+      desc: 'Green-wave traffic signal synchronization, Esri World Light Gray road canvas, top-view rotating car marker, and limp-home governor.'
+    },
+    {
+      title: 'Fleet Garage & Asset Map',
+      path: '/fleet',
+      icon: FleetIcon,
+      tag: 'FLEET / OPERATIONS',
+      desc: 'Regional vehicle roster with license plate badges, gear selector status filters, Esri light regional map, and instant telemetry switching.'
+    },
+    {
+      title: 'AI Analytics & Hyperparameters',
+      path: '/analytics',
+      icon: AnalyticsIcon,
+      tag: 'INSIGHTS / TUNER',
+      desc: 'Neural network training lab with empirical loss curves, accuracy rings, and 3-tier enterprise financial speed matrix.'
+    },
+    {
+      title: 'Driver Safety & Coaching',
+      path: '/safety',
+      icon: SafetyIcon,
+      tag: 'INSIGHTS / SAFETY',
+      desc: 'Speedometer 0-100 score gauge with deduction ledger, kinetic energy dissipation log, and prioritized AI coaching tips.'
+    },
+    {
+      title: 'Threat Defense & Immobilizer',
+      path: '/security',
+      icon: SecurityIcon,
+      tag: 'FLEET / DEFENSE',
+      desc: 'Car-alarm style status strip, sweeping perimeter radar, fuel siphoning anomaly log, and guarded remote engine lockout.'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_40%),linear-gradient(135deg,#020617_0%,#0f172a_100%)] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-cyan-400 to-sky-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <svg className="w-5 h-5 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+    <div className="min-h-screen bg-[#F4F6F9] text-[#0F172A] flex flex-col font-sans selection:bg-[#0B3D91]/20 relative overflow-hidden">
+      
+      {/* 3px Dual Racing Stripe at the Very Top */}
+      <div className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#0B3D91] via-[#0B3D91] to-[#D7263D] z-50" />
+
+      {/* Top Navbar */}
+      <nav className="fixed top-[3px] left-0 right-0 z-40 border-b border-[#DDE2EA] bg-white/95 backdrop-blur-md shadow-xs">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
+          <div className="flex items-center gap-3">
+            <SpeedArcLogo className="w-7 h-7 text-[#0B3D91]" />
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-heading font-black tracking-widest text-[#0F172A]">VELOCIQ</span>
+              <span className="text-[10px] font-mono font-bold uppercase bg-blue-50 text-[#0B3D91] border border-blue-200 px-2 py-0.5 rounded-full">
+                SHOWROOM PRECISION v2.0
+              </span>
             </div>
-            <span className="text-xl font-bold tracking-widest text-white">VELOCIQ</span>
           </div>
-          <div className="flex gap-4">
-            <button onClick={() => navigate('/login')} className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-300 transition hover:text-white">
-              Sign In
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleLaunch('/dashboard')} 
+              className="px-5 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-white bg-[#0B3D91] hover:bg-[#082b68] transition shadow-sm"
+            >
+              Mission Control
             </button>
-            <Link to="/dashboard" className="rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-slate-950 transition hover:bg-cyan-400 hover:shadow-lg hover:shadow-cyan-500/25">
-              Launch Dashboard
-            </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-20 px-4 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-emerald-300 mb-8 animate-fade-in-up">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-          VelocIQ V2.0 is now live
+      <main className="flex-1 flex flex-col items-center justify-center pt-36 pb-16 px-6 text-center max-w-5xl mx-auto relative z-10">
+        
+        {/* Status Pill */}
+        <div className="inline-flex items-center gap-2.5 rounded-full border border-blue-200 bg-blue-50 px-4 py-1 text-xs font-mono font-bold text-[#0B3D91] mb-6">
+          <span className="w-2 h-2 rounded-full bg-[#0B3D91] animate-pulse" />
+          <span>CYBER-PHYSICAL AUTONOMOUS FLEET TELEMATICS</span>
         </div>
-        
-        <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-white sm:text-7xl leading-tight">
-          Next-Generation <br className="hidden sm:block"/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-sky-400">Fleet Intelligence</span>
+
+        {/* Headline about Cubic Drag Tax */}
+        <h1 className="text-4xl sm:text-6xl font-black font-heading tracking-tight text-[#0F172A] leading-[1.1] max-w-4xl">
+          Conquer the <span className="text-[#0B3D91]">Cubic Drag Tax</span> with Autonomous Physics Telematics
         </h1>
-        
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400 leading-relaxed sm:text-xl">
-          Transform your operations with real-time telemetry, AI-driven dispatch, and predictive maintenance. Empower your fleet to drive smarter, safer, and cheaper.
+
+        <p className="mt-5 max-w-2xl text-base text-slate-700 leading-relaxed font-sans font-medium">
+          Because aerodynamic drag scales with the cube of velocity (<span className="font-mono font-bold text-[#0F172A]">P &prop; v&sup3;</span>), cruising at 120 km/h dissipates <strong className="text-[#D7263D]">2.37&times;</strong> the power of 90 km/h. VelocIQ synchronizes multi-physics engines, 3D WebGL twins, and green-wave GLOSA guidance to protect enterprise margins.
         </p>
-        
-        <div className="mt-10 flex flex-col sm:flex-row gap-4">
-          <Link to="/dashboard" className="rounded-full bg-cyan-500 px-8 py-4 text-base font-bold text-slate-950 transition-all hover:bg-cyan-400 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-1">
-            Explore the Dashboard
-          </Link>
-          <button onClick={() => navigate('/login')} className="rounded-full border border-slate-700 bg-slate-900/50 px-8 py-4 text-base font-medium text-slate-200 transition-all hover:border-slate-500 hover:bg-slate-800">
-            View Documentation
+
+        {/* Visual Automotive Hero Graphic: Side-View Car Silhouette with Streamlines */}
+        <div className="relative my-8 w-full max-w-xl h-44 flex items-center justify-center bg-white rounded-2xl border border-[#DDE2EA] shadow-sm p-4 overflow-hidden">
+          {/* Subtle Speed Streamlines SVG */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 500 160" preserveAspectRatio="none">
+            <path d="M 0 40 Q 200 20 300 45 T 500 40" fill="none" stroke="#0B3D91" strokeWidth="2" strokeDasharray="6 4" />
+            <path d="M 0 70 Q 180 50 280 75 T 500 70" fill="none" stroke="#1E88E5" strokeWidth="2.5" />
+            <path d="M 0 100 Q 220 85 320 105 T 500 100" fill="none" stroke="#B45309" strokeWidth="2" strokeDasharray="8 4" />
+            <path d="M 0 130 Q 240 120 340 135 T 500 130" fill="none" stroke="#D7263D" strokeWidth="1.5" />
+          </svg>
+
+          {/* Car Silhouette Centerpiece */}
+          <div className="relative z-10 flex flex-col items-center">
+            <CarSilhouette profile="sedan" view="side" className="w-56 h-24 text-[#0B3D91]" />
+            <div className="flex items-center gap-3 mt-1 font-mono text-[11px]">
+              <span className="text-[#047857] font-bold">● Eco 70 km/h</span>
+              <span className="text-[#0B3D91] font-bold">● Cruise 95 km/h</span>
+              <span className="text-[#D7263D] font-bold">● Drag Tax Zone &gt;110 km/h</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Single Primary CTA */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => handleLaunch('/dashboard')}
+            className="px-8 py-3.5 rounded-xl text-sm font-bold font-mono uppercase tracking-wider text-white bg-[#0B3D91] hover:bg-[#082b68] transition shadow-md flex items-center gap-2 group"
+          >
+            <span>Launch Mission Control</span>
+            <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
           </button>
         </div>
+
+        {/* Chequered Flag Section Divider */}
+        <div className="chequered-flag w-full max-w-4xl h-3 my-12 opacity-80" />
+
+        {/* Three Animated Stat Counters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl text-left">
+          {statCounters.map((s, idx) => (
+            <Card key={idx} className="p-5 bg-white border border-[#DDE2EA] rounded-xl shadow-sm">
+              <span className="text-3xl font-extrabold font-mono tabular-nums block" style={{ color: s.color }}>
+                {s.value}
+              </span>
+              <span className="text-xs font-bold font-heading text-[#0F172A] uppercase tracking-wider mt-1 block">
+                {s.label}
+              </span>
+              <p className="text-[11px] text-slate-700 font-medium mt-1 leading-normal font-sans">
+                {s.desc}
+              </p>
+            </Card>
+          ))}
+        </div>
+
       </main>
 
-      {/* Metrics Section */}
-      <section className="border-y border-slate-800/60 bg-slate-900/30 backdrop-blur-sm py-12">
-        <div className="mx-auto max-w-7xl px-6 grid grid-cols-2 lg:grid-cols-4 gap-8 divide-x divide-slate-800/50">
-          {metrics.map((metric) => (
-            <div key={metric.label} className="flex flex-col items-center text-center px-4">
-              <dt className="text-sm uppercase tracking-widest text-slate-500 font-medium">{metric.label}</dt>
-              <dd className="mt-2 text-4xl font-extrabold text-white tracking-tight">{metric.value}</dd>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="py-24 px-6 mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white sm:text-4xl">Everything you need to scale</h2>
-          <p className="mt-4 text-lg text-slate-400">Powerful AI models combined with ultra-low latency hardware.</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {features.map((feature) => (
-            <div key={feature.title} className="group relative rounded-[2rem] border border-slate-800 bg-slate-900/50 p-8 transition-all hover:bg-slate-800/50 hover:border-slate-700">
-              <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 border border-slate-800 group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-colors">
-                {feature.icon}
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
-              <p className="text-slate-400 leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Testimonial / Social Proof */}
-      <section className="py-20 border-t border-slate-800/60 bg-slate-950/50">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <svg className="mx-auto h-12 w-12 text-slate-700 mb-6" fill="currentColor" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
-          </svg>
-          <p className="text-2xl font-medium text-slate-200 leading-relaxed italic">
-            "VelocIQ fundamentally changed how we operate. The Predictive Mechanic AI saved us from three major engine failures in the first month alone, paying for the system ten times over."
+      {/* Feature Grid for the 8 Modules */}
+      <section className="py-16 px-6 mx-auto max-w-7xl relative z-10 border-t border-[#DDE2EA] bg-[#F8FAFC]">
+        <div className="text-center mb-10">
+          <SectionLabel label="SYSTEM CAPABILITIES & ARCHITECTURE" />
+          <h2 className="text-2xl sm:text-3xl font-heading font-bold text-[#0F172A] mt-2">
+            Eight Integrated Automotive Modules
+          </h2>
+          <p className="text-xs text-slate-700 font-medium mt-2 max-w-lg mx-auto">
+            Engineered as a high-precision digital showroom & engineering workbench for enterprise fleet directors, vehicle engineers, and dispatch operators.
           </p>
-          <div className="mt-8">
-            <p className="font-bold text-white">Sarah Jenkins</p>
-            <p className="text-sm text-slate-500">Director of Fleet Operations, Apex Logistics</p>
-          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {modules.map((m) => {
+            const Icon = m.icon;
+            return (
+              <div
+                key={m.title}
+                onClick={() => handleLaunch(m.path)}
+                className="group p-5 rounded-xl border border-[#DDE2EA] bg-white hover:border-[#0B3D91] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 group-hover:bg-blue-50 group-hover:border-blue-200 group-hover:text-[#0B3D91] transition text-slate-700">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold uppercase text-[#0B3D91] bg-blue-50 px-2 py-0.5 rounded border border-blue-200 tracking-wider">
+                      {m.tag}
+                    </span>
+                  </div>
+
+                  <h3 className="text-sm font-heading font-bold text-[#0F172A] group-hover:text-[#0B3D91] transition">
+                    {m.title}
+                  </h3>
+                  <p className="text-xs text-slate-700 font-medium mt-2 leading-relaxed font-sans">
+                    {m.desc}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between text-xs font-mono font-bold text-[#0B3D91]">
+                  <span>Enter Module</span>
+                  <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 px-6 py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
+      <footer className="border-t border-[#DDE2EA] bg-white px-6 py-8 relative z-10 text-xs text-slate-700 font-mono">
+        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-cyan-400 to-sky-600 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <span className="text-sm font-bold tracking-widest text-slate-300">VELOCIQ</span>
+            <SpeedArcLogo className="w-5 h-5 text-[#0B3D91]" />
+            <span className="font-bold text-[#0F172A]">VELOCIQ TELEMATICS PLATFORM</span>
           </div>
-          
-          <div className="flex gap-6 text-sm text-slate-500">
-            <a href="#" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Contact</a>
+          <div>
+            Built with React 18, Three.js WebGL, Leaflet Esri Light Canvas, and Precision Automotive Design System.
           </div>
-
-          <p className="text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} Novalegion. All rights reserved.
-          </p>
         </div>
       </footer>
+
     </div>
   );
 }
+
