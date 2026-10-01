@@ -15,9 +15,16 @@ function ReplayAnimation({ path, isPlaying, setProgress }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
+    const t2 = setTimeout(() => map.invalidateSize(), 450);
     if (path.length > 0) {
       map.fitBounds(path);
     }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [path, map]);
 
   useEffect(() => {
@@ -64,9 +71,11 @@ export default function TripReplayModal({ trip, onClose }) {
           </div>
           <button 
             onClick={onClose}
-            className="rounded-full bg-slate-700 p-2 text-slate-300 hover:bg-slate-600 hover:text-white"
+            className="rounded-full bg-slate-700 p-2 text-slate-300 hover:bg-slate-600 hover:text-white transition"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -96,9 +105,16 @@ export default function TripReplayModal({ trip, onClose }) {
                 No GPS data available for this trip.
               </div>
             ) : (
-              <MapContainer style={{ height: '100%', width: '100%' }} zoomControl={false}>
+              <MapContainer style={{ height: '100%', width: '100%', minHeight: '400px' }} zoomControl={false}>
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                />
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={16}
+                  opacity={0.8}
                 />
                 <ReplayAnimation path={trip.path} isPlaying={isPlaying} setProgress={setProgress} />
               </MapContainer>

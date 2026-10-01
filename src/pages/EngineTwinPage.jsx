@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EngineTwinCanvas from '../components/engine3d/EngineTwinCanvas';
 import {
   stepEngineDigitalTwin,
   generateDynoPowerCurve,
   VISUAL_MODES,
-  TWIN_FAULT_SCENARIOS
+  TWIN_FAULT_SCENARIOS,
+  buildComponentRiskMap
 } from '../utils/engineTwinPhysics';
 import {
   LineChart,
@@ -126,6 +127,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
   };
 
   const { telemetry, thermal, cylinderBalance, wear, diagnostics } = twinState;
+  const componentRiskMap = useMemo(
+    () => buildComponentRiskMap({ diagnostics, thermal, wear, telemetry, activeScenario }),
+    [diagnostics, thermal, wear, telemetry, activeScenario]
+  );
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950 p-6 text-slate-100">
@@ -164,7 +169,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              📐 Precision CAD
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+              </svg>
+              <span>Precision CAD</span>
             </button>
             <button
               onClick={() => { setVisualMode(VISUAL_MODES.THERMAL); setExplodedFactor(0); }}
@@ -174,7 +182,11 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🔥 Thermal IR
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 010 11.314z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Thermal IR</span>
             </button>
             <button
               onClick={() => { setVisualMode(VISUAL_MODES.FLUIDS); setExplodedFactor(0); }}
@@ -184,7 +196,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              💧 Fluids & Flow
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+              </svg>
+              <span>Fluids & Flow</span>
             </button>
             <button
               onClick={() => { setVisualMode(VISUAL_MODES.MECHANICAL); setExplodedFactor(0); }}
@@ -194,7 +209,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              ⚡ Combustion & Knock
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Combustion & Knock</span>
             </button>
             <button
               onClick={() => { setVisualMode(VISUAL_MODES.EXPLODED); setExplodedFactor(0.75); }}
@@ -204,7 +222,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🔍 Exploded Subsystems
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10l8 4 8-4V7M4 7l8 4m8-4l-8 4m0 0v10M12 3l8 4-8 4-8-4 8-4z" />
+              </svg>
+              <span>Exploded Subsystems</span>
             </button>
           </div>
         </header>
@@ -320,6 +341,13 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
           {/* 3D Engine Canvas (7 Cols) */}
           <div className="lg:col-span-7 flex flex-col gap-4">
             <div className="relative h-[530px] rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
+              <div className="absolute left-3 top-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/80 px-2 py-1.5 backdrop-blur-sm">
+                <span className="flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">Risk</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-200"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Healthy</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-200"><span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />Watch</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-200"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" />Damaged</span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-200"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />Critical</span>
+              </div>
               <EngineTwinCanvas
                 isSimRunning={isSimRunning}
                 visualMode={visualMode}
@@ -330,6 +358,7 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
                 activeScenario={activeScenario}
                 onSelectComponent={(comp) => setSelectedComponent(comp)}
                 selectedComponent={selectedComponent}
+                componentRiskMap={componentRiskMap}
               />
             </div>
 

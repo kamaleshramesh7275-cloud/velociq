@@ -18,3 +18,30 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Leaflet Container & Tailwind Conflict Overrides */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #020617 !important;
+  z-index: 10;
+}
+
+/* Fix Tailwind Preflight 'img { max-width: 100%; height: auto; }' which shatters Leaflet tile layers */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-tile {
+  visibility: inherit !important;
+}
+
+.leaflet-pane {
+  z-index: 10 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 20 !important;
+}

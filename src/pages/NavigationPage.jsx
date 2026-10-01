@@ -2,20 +2,56 @@ import React from 'react';
 import RouteTracker from '../components/RouteTracker';
 import WeatherWidget from '../components/WeatherWidget';
 import TripLogger from '../components/TripLogger';
+import RangeVelocityGovernor from '../components/RangeVelocityGovernor';
+import GlosaAdvisor from '../components/GlosaAdvisor';
+import { useFleet } from '../context/FleetContext';
 
-export default function NavigationPage({ telemetry, weather, tripHistory, handleEndTrip, handleClearHistory, aiNavigatorEnabled, setAiNavigatorEnabled, aiThoughtLogs }) {
+export default function NavigationPage({ 
+  telemetry, 
+  weather, 
+  tripHistory, 
+  handleEndTrip, 
+  handleClearHistory, 
+  aiNavigatorEnabled, 
+  setAiNavigatorEnabled, 
+  aiThoughtLogs,
+  isLimpModeActive = false,
+  onToggleLimpMode,
+  trafficSignal,
+  kineticWaste,
+  onSimulateStop
+}) {
+  const { activeVehicle } = useFleet();
+  const vehicleProfile = activeVehicle?.profile || 'sedan';
+  const remainingDistance = Math.max(0, 25 - telemetry.tripMileage);
+
   return (
     <div className="p-8 text-slate-100 flex-1 overflow-auto">
       <div className="mx-auto max-w-6xl flex flex-col gap-6">
         <header>
-          <h1 className="text-3xl font-bold text-white">GPS & Navigation</h1>
-          <p className="mt-2 text-slate-400">Live route tracking, geofencing, and historical trip logs.</p>
+          <h1 className="text-3xl font-bold text-white">GPS, Speed & Range Intelligence</h1>
+          <p className="mt-2 text-slate-400">
+            Real-time trajectory, GLOSA traffic light speed guidance, and velocity-dependent range governing.
+          </p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          {/* Left Column: Route, GLOSA & AI Dispatch */}
           <div className="flex flex-col gap-6">
-            <RouteTracker route={telemetry.route} speed={telemetry.speed} aiNavigatorEnabled={aiNavigatorEnabled} weather={weather} />
+            <RouteTracker 
+              route={telemetry.route} 
+              speed={telemetry.speed} 
+              aiNavigatorEnabled={aiNavigatorEnabled} 
+              weather={weather} 
+            />
             
+            <GlosaAdvisor 
+              speed={telemetry.speed}
+              trafficSignal={trafficSignal}
+              kineticWaste={kineticWaste}
+              onSimulateStop={onSimulateStop}
+            />
+
             {/* AI Navigator Control Panel */}
             <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-2xl shadow-black/40 backdrop-blur">
               <div className="flex items-center justify-between mb-4">
@@ -58,8 +94,20 @@ export default function NavigationPage({ telemetry, weather, tripHistory, handle
               )}
             </section>
           </div>
+
+          {/* Right Column: Range Governor, Weather, Trip Logger */}
           <div className="flex flex-col gap-6">
+            <RangeVelocityGovernor 
+              fuelPercent={telemetry.fuel}
+              currentSpeed={telemetry.speed}
+              vehicleProfile={vehicleProfile}
+              remainingDistance={remainingDistance}
+              isLimpModeActive={isLimpModeActive}
+              onToggleLimpMode={onToggleLimpMode}
+            />
+
             <WeatherWidget weather={weather} />
+
             <TripLogger 
               tripHistory={tripHistory} 
               onEndTrip={handleEndTrip} 

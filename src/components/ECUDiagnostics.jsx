@@ -62,7 +62,11 @@ export default function ECUDiagnostics({ activeDTCs, onClearDTCs, onTriggerDTC }
           <div>
             {activeDTCs.length === 0 ? (
               <div className="py-4 text-center">
-                <span className="inline-block rounded-full bg-emerald-500/20 px-3 py-2 text-3xl text-emerald-400 mb-3">✓</span>
+                <div className="inline-flex items-center justify-center rounded-full bg-emerald-500/20 p-3 text-emerald-400 mb-3 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
                 <h3 className="font-semibold text-slate-200">No Fault Codes Detected</h3>
                 <p className="mt-1 text-sm text-slate-400">All ECU systems are responding with status: Nominal.</p>
                 <button

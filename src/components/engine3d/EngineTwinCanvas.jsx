@@ -32,7 +32,8 @@ export default function EngineTwinCanvas({
   cylinderBalance = [],
   activeScenario = 'NOMINAL',
   onSelectComponent = () => {},
-  selectedComponent = null
+  selectedComponent = null,
+  componentRiskMap = {}
 }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -80,6 +81,44 @@ export default function EngineTwinCanvas({
   });
 
   const materialsRef = useRef({});
+  const componentMeshesRef = useRef({});
+
+  const registerComponentMeshes = (componentId, mesh) => {
+    if (!componentId || !mesh) return;
+    const list = componentMeshesRef.current[componentId] || [];
+    if (!list.includes(mesh)) {
+      list.push(mesh);
+      componentMeshesRef.current[componentId] = list;
+    }
+  };
+
+  const applyRiskColorToObject = (obj, riskLevel) => {
+    if (!obj) return;
+
+    if (obj.isMesh && obj.material) {
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const riskHex = {
+        healthy: 0x22c55e,
+        watch: 0xfbbf24,
+        damaged: 0xf97316,
+        critical: 0xef4444
+      }[riskLevel] || 0x22c55e;
+
+      materials.forEach((material) => {
+        if (material && material.color) {
+          material.color.setHex(riskHex);
+          material.emissive = new THREE.Color(0x000000);
+          material.emissiveIntensity = 0;
+          material.needsUpdate = true;
+        }
+      });
+    }
+
+    if (obj.children && obj.children.length) {
+      obj.children.forEach((child) => applyRiskColorToObject(child, riskLevel));
+    }
+  };
+
   // Selective clipping plane strictly for outer block/head casing
   const clippingPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.22));
 
@@ -304,7 +343,7 @@ export default function EngineTwinCanvas({
   // Update materials on visual mode or thermal state change
   useEffect(() => {
     updateVisualModeColors();
-  }, [visualMode, thermalState, activeScenario, selectedComponent, studioTheme]);
+  }, [visualMode, thermalState, activeScenario, selectedComponent, studioTheme, componentRiskMap]);
 
   const updateCameraPosition = () => {
     const { radius, theta, phi } = sphericalRef.current;
@@ -607,6 +646,9 @@ export default function EngineTwinCanvas({
     filterFlange.position.z = -0.15;
     oilFilterGroup.add(filterFlange);
     oilFilterGroup.userData = { id: 'oil_filter', name: 'Spin-on Engine Oil Filter', subsystem: 'Lubrication' };
+    registerComponentMeshes('oil_filter', oilFilterGroup);
+    registerComponentMeshes('oil_filter', filterBody);
+    registerComponentMeshes('oil_filter', filterFlange);
     blockGroup.add(oilFilterGroup);
 
     // Oil Pressure Gallery Sensor Switch (Brass Hex)
@@ -614,12 +656,14 @@ export default function EngineTwinCanvas({
     oilSensor.rotateX(Math.PI / 2);
     oilSensor.position.set(-0.15, -0.55, 0.78);
     oilSensor.userData = { id: 'oil_pressure_sensor', name: 'Main Gallery Oil Pressure Sensor', subsystem: 'Lubrication' };
+    registerComponentMeshes('oil_pressure_sensor', oilSensor);
     blockGroup.add(oilSensor);
 
     // Knock Sensor (Piezoelectric Donut on Mid-Block)
     const knockSensor = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.025, 12, 20), mats.matteBlack);
     knockSensor.position.set(0.18, -0.15, 0.76);
     knockSensor.userData = { id: 'knock_sensor', name: 'Piezoelectric Engine Knock Sensor', subsystem: 'Ignition & Timing' };
+    registerComponentMeshes('knock_sensor', knockSensor);
     blockGroup.add(knockSensor);
     const knockBolt = createHexBolt(0.025, 0.06);
     knockBolt.rotateX(Math.PI / 2);
@@ -646,6 +690,7 @@ export default function EngineTwinCanvas({
     const oilPan = new THREE.Mesh(oilPanGeom, mats.castAluminum);
     oilPan.position.set(-0.25, -0.98, 0);
     oilPan.userData = { id: 'oil_pan', name: 'Cast Aluminum Stiffened Oil Pan', subsystem: 'Lubrication' };
+    registerComponentMeshes('oil_pan', oilPan);
     blockGroup.add(oilPan);
     // Magnetic Drain Plug
     const drainPlug = createHexBolt(0.04, 0.05);
@@ -711,6 +756,7 @@ export default function EngineTwinCanvas({
     headMesh.castShadow = true;
     headMesh.position.y = 0.2;
     headMesh.userData = { id: 'cylinder_head', name: '16-Valve DOHC Cylinder Head', subsystem: 'Valvetrain' };
+    registerComponentMeshes('cylinder_head', headMesh);
     headGroup.add(headMesh);
 
     // Engine Lifting Brackets (Hoist Loops on Front-Left & Rear-Right)
@@ -812,6 +858,10 @@ export default function EngineTwinCanvas({
       coilGroup.position.set(xPos, 0.78, 0.02);
 
       const coilTop = new THREE.Mesh(createBeveledBox(0.24, 0.12, 0.22, 0.03, 0.02), mats.matteBlack);
+      if (c === 2) {
+        registerComponentMeshes('coil_3', coilTop);
+        registerComponentMeshes('coil_3', coilGroup);
+      }
       coilGroup.add(coilTop);
 
       const socket = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.09), mats.matteBlack);
@@ -843,6 +893,7 @@ export default function EngineTwinCanvas({
     const intakePlenum = new THREE.Mesh(intakePlenumGeom, mats.polishedAluminum);
     intakePlenum.position.set(0, 0.9, -0.58);
     intakePlenum.userData = { id: 'intake_plenum', name: 'Cast Aluminum Intake Plenum', subsystem: 'Air Induction' };
+    registerComponentMeshes('intake_plenum', intakePlenum);
     headGroup.add(intakePlenum);
 
     // ─────────────────────────────────────────────────────────────
@@ -883,6 +934,7 @@ export default function EngineTwinCanvas({
     ]);
     const runner1 = new THREE.Mesh(new THREE.TubeGeometry(curve1, 24, 0.082, 16, false), mats.exhaustStainless);
     runner1.userData = { id: 'exhaust_runner_1', name: 'Exhaust Runner #1', subsystem: 'Exhaust' };
+    registerComponentMeshes('exhaust_runner_1', runner1);
     exhaustGroup.add(runner1);
 
     const curve2 = new THREE.CatmullRomCurve3([
@@ -893,6 +945,7 @@ export default function EngineTwinCanvas({
     ]);
     const runner2 = new THREE.Mesh(new THREE.TubeGeometry(curve2, 24, 0.082, 16, false), mats.exhaustStainless);
     runner2.userData = { id: 'exhaust_runner_2', name: 'Exhaust Runner #2', subsystem: 'Exhaust' };
+    registerComponentMeshes('exhaust_runner_2', runner2);
     exhaustGroup.add(runner2);
 
     const curve3 = new THREE.CatmullRomCurve3([
@@ -903,6 +956,7 @@ export default function EngineTwinCanvas({
     ]);
     const runner3 = new THREE.Mesh(new THREE.TubeGeometry(curve3, 24, 0.082, 16, false), mats.exhaustStainless);
     runner3.userData = { id: 'exhaust_runner_3', name: 'Exhaust Runner #3', subsystem: 'Exhaust' };
+    registerComponentMeshes('exhaust_runner_3', runner3);
     exhaustGroup.add(runner3);
 
     const curve4 = new THREE.CatmullRomCurve3([
@@ -913,6 +967,7 @@ export default function EngineTwinCanvas({
     ]);
     const runner4 = new THREE.Mesh(new THREE.TubeGeometry(curve4, 24, 0.082, 16, false), mats.exhaustStainless);
     runner4.userData = { id: 'exhaust_runner_4', name: 'Exhaust Runner #4', subsystem: 'Exhaust' };
+    registerComponentMeshes('exhaust_runner_4', runner4);
     exhaustGroup.add(runner4);
 
     // Center Manifold Support Bracket to Engine Block (Direct Reference Match)
@@ -934,6 +989,7 @@ export default function EngineTwinCanvas({
     const catGroup = new THREE.Group();
     catGroup.position.set(0.0, -0.63, 0.34);
     catGroup.rotation.z = -0.09;
+    registerComponentMeshes('catalytic_converter', catGroup);
 
     // Upper cone transition
     const catTop = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.22, 24), mats.exhaustStainless);
@@ -1033,6 +1089,8 @@ export default function EngineTwinCanvas({
     waterNeckGroup.add(ectPlug);
 
     waterNeckGroup.userData = { id: 'thermostat_housing', name: 'Coolant Thermostat Housing & ECT Sensor', subsystem: 'Cooling' };
+    registerComponentMeshes('thermostat_housing', waterNeckGroup);
+    registerComponentMeshes('coolant_hard_line', coolantHardLine);
     exhaustGroup.add(waterNeckGroup);
 
     // ─────────────────────────────────────────────────────────────
@@ -1134,6 +1192,7 @@ export default function EngineTwinCanvas({
     altGroup.add(altTerm);
 
     altGroup.userData = { id: 'alternator', name: 'High-Output Stator Alternator', subsystem: 'Electrical' };
+    registerComponentMeshes('alternator', altGroup);
     accessoryGroup.add(altGroup);
 
     // Crankshaft Harmonic Damper Pulley (Bottom Dual-Sheave)
@@ -1344,10 +1403,31 @@ export default function EngineTwinCanvas({
       mats.casingBlack.opacity = 1.0;
     }
 
+    Object.entries(componentRiskMap || {}).forEach(([componentId, riskLevel]) => {
+      const componentMeshes = componentMeshesRef.current[componentId] || [];
+      componentMeshes.forEach((mesh) => applyRiskColorToObject(mesh, riskLevel));
+    });
+
     // Highlighting selected component
-    if (selectedComponent && mats[selectedComponent.id]) {
-      mats[selectedComponent.id].emissive = new THREE.Color(0x38bdf8);
-      mats[selectedComponent.id].emissiveIntensity = 0.8;
+    if (selectedComponent && componentMeshesRef.current[selectedComponent.id]) {
+      componentMeshesRef.current[selectedComponent.id].forEach((mesh) => {
+        const applyHighlight = (obj) => {
+          if (!obj) return;
+          if (obj.isMesh && obj.material) {
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            materials.forEach((material) => {
+              if (material && material.color) {
+                material.emissive = new THREE.Color(0x38bdf8);
+                material.emissiveIntensity = 0.8;
+              }
+            });
+          }
+          if (obj.children && obj.children.length) {
+            obj.children.forEach(applyHighlight);
+          }
+        };
+        applyHighlight(mesh);
+      });
     }
   };
 
@@ -1469,7 +1549,11 @@ export default function EngineTwinCanvas({
                   : 'bg-slate-900/90 border border-cyan-500/60 text-cyan-400 hover:bg-cyan-500/10'
               }`}
             >
-              📷 1:1 Reference
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>1:1 Reference</span>
             </button>
             <button
               onClick={() => setCameraPreset('EXHAUST')}
@@ -1542,7 +1626,10 @@ export default function EngineTwinCanvas({
             }`}
             title="Toggle Solid CAD Cutaway to inspect internal cast-iron cylinder sleeve liners and pistons"
           >
-            ✂️ {cutawayActive ? 'Cutaway: ON' : 'Cutaway: OFF'}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+            </svg>
+            <span>{cutawayActive ? 'Cutaway: ON' : 'Cutaway: OFF'}</span>
           </button>
 
           {/* Audio Engine Sound Synthesizer */}
@@ -1557,7 +1644,10 @@ export default function EngineTwinCanvas({
             }`}
             title="Toggle Web Audio procedural engine sound revving with RPM"
           >
-            🔊 {audioEnabled ? 'Engine Audio: ON' : 'Audio: OFF'}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <span>{audioEnabled ? 'Engine Audio: ON' : 'Audio: OFF'}</span>
           </button>
 
           {/* Dual Lighting Mode: Keyshot White vs Dark Studio */}
@@ -1570,7 +1660,21 @@ export default function EngineTwinCanvas({
             }`}
             title="Switch between Keyshot White Studio (matches reference photo) and Cyber Dark Studio"
           >
-            {studioTheme === 'KEYSHOT_WHITE' ? '🌙 Dark Studio' : '☀️ Keyshot White'}
+            {studioTheme === 'KEYSHOT_WHITE' ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <span>Dark Studio</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Keyshot White</span>
+              </>
+            )}
           </button>
         </div>
       </div>

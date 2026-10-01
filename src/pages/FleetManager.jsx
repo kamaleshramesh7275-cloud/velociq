@@ -1,7 +1,7 @@
+import React, { useEffect } from 'react';
 import { useFleet } from '../context/FleetContext';
 import { useNavigate } from 'react-router-dom';
-
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -13,20 +13,54 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Custom icons for status
-const createIcon = (color) => {
-  return new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+// Self-contained Vector SVG vehicle status glyphs (Zero external image dependencies)
+const createStatusMarkerIcon = (status, isMonitored) => {
+  const colorMap = {
+    Active: { border: 'border-emerald-400', bg: 'bg-emerald-400', ping: 'bg-emerald-400/30' },
+    Idle: { border: 'border-amber-400', bg: 'bg-amber-400', ping: '' },
+    Maintenance: { border: 'border-rose-400', bg: 'bg-rose-400', ping: '' },
+  };
+  const cfg = colorMap[status] || colorMap.Idle;
+  const monitoredClass = isMonitored ? 'ring-4 ring-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.9)]' : 'shadow-lg';
+
+  return L.divIcon({
+    className: 'custom-fleet-marker',
+    html: `
+      <div class="relative flex items-center justify-center w-8 h-8 -ml-4 -mt-4">
+        ${cfg.ping ? `<div class="absolute inset-0 rounded-full ${cfg.ping} animate-ping"></div>` : ''}
+        <div class="relative w-7 h-7 rounded-full bg-slate-950 border-2 ${cfg.border} ${monitoredClass} flex items-center justify-center">
+          <div class="w-3 h-3 rounded-full ${cfg.bg}"></div>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
   });
 };
-const activeIcon = createIcon('green');
-const idleIcon = createIcon('orange');
-const maintIcon = createIcon('red');
+
+// Automatic Leaflet container dimension invalidator
+function MapFix({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
+    const t2 = setTimeout(() => map.invalidateSize(), 500);
+    const t3 = setTimeout(() => map.invalidateSize(), 1200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (center && center[0] && center[1]) {
+      map.setView(center, map.getZoom(), { animate: true });
+    }
+  }, [center?.[0], center?.[1], map]);
+
+  return null;
+}
 
 export default function FleetManager() {
   const { vehicles, drivers, assignments, assignDriver, removeDriver, setVehicleStatus, monitorVehicle, activeVehicleId } = useFleet();
@@ -59,30 +93,54 @@ export default function FleetManager() {
 
         {/* Multi-Vehicle Map */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-slate-700 bg-slate-800/40 shadow-2xl backdrop-blur">
-          <div className="border-b border-slate-700 bg-slate-900/50 px-6 py-4">
-            <h2 className="text-lg font-semibold text-white">Live Fleet Map</h2>
+          <div className="border-b border-slate-700 bg-slate-900/50 px-6 py-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Live Fleet Map</h2>
+              <p className="text-xs text-slate-400">Real-time GPS telemetry of all regional fleet assets</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Active</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Idle</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400"></span> Maintenance</span>
+            </div>
           </div>
-          <div className="h-[400px] w-full">
-            <MapContainer center={[28.6200, 77.2050]} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <div className="h-[440px] w-full relative">
+            <MapContainer 
+              center={[28.6200, 77.2050]} 
+              zoom={13} 
+              style={{ height: '100%', width: '100%', minHeight: '440px' }}
+              zoomControl={true}
+            >
+              <MapFix center={[28.6200, 77.2050]} />
+              {/* Clean Dark Canvas Basemap (100% Free, Zero Key, No Watermark) */}
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={16}
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
+              />
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={16}
+                opacity={0.85}
               />
               {vehicles.map(v => {
                 const isMonitored = v.id === activeVehicleId;
-                const icon = v.status === 'Active' ? activeIcon : v.status === 'Idle' ? idleIcon : maintIcon;
+                const icon = createStatusMarkerIcon(v.status, isMonitored);
                 return (
                   <Marker key={v.id} position={[v.lat || 28.6139, v.lon || 77.2090]} icon={icon}>
                     <Popup>
-                      <div className="font-sans">
-                        <strong className="text-slate-800">{v.name}</strong><br />
-                        <span className="text-slate-500">{v.licensePlate}</span><br />
-                        Status: {v.status}<br />
-                        {isMonitored && <span className="font-bold text-emerald-600">Currently Monitored</span>}
+                      <div className="font-sans text-xs p-1">
+                        <strong className="text-sm font-bold text-slate-900">{v.name}</strong><br />
+                        <span className="font-mono text-slate-600 font-semibold">{v.licensePlate}</span><br />
+                        <span className="text-slate-500">Status: </span>
+                        <span className={`font-bold ${v.status === 'Active' ? 'text-emerald-600' : v.status === 'Idle' ? 'text-amber-600' : 'text-rose-600'}`}>
+                          {v.status}
+                        </span><br />
+                        {isMonitored && <div className="mt-1 font-bold text-cyan-600">Currently Monitored in Telemetry</div>}
                         {!isMonitored && (
                           <button 
                             onClick={(e) => { e.preventDefault(); handleMonitor(v.id); }}
-                            className="mt-2 rounded bg-cyan-600 px-3 py-1 text-xs text-white"
+                            className="mt-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 font-semibold px-3 py-1.5 text-xs text-white shadow-sm transition"
                           >
                             Monitor Live
                           </button>
@@ -140,7 +198,7 @@ export default function FleetManager() {
                       >
                         <option value="">-- No Driver Assigned --</option>
                         {drivers.map(d => (
-                          <option key={d.id} value={d.id}>{d.name} ({d.rating} ⭐)</option>
+                          <option key={d.id} value={d.id}>{d.name} (Rating: {d.rating} / 5.0)</option>
                         ))}
                       </select>
                     </div>

@@ -4,10 +4,15 @@ import AICoachingPanel from '../components/AICoachingPanel';
 import CostSavingsCalculator from '../components/CostSavingsCalculator';
 import DriverScore from '../components/DriverScore';
 
+import { useFleet } from '../context/FleetContext';
+
 export default function AnalyticsPage({ 
   modelState, handleTrainingComplete, aiAgentOptimized, setAiAgentOptimized, 
   telemetry, isConnected, speedLimit, fuelPrice, setFuelPrice, activeDriver 
 }) {
+  const { activeVehicle } = useFleet();
+  const vehicleProfile = activeVehicle?.profile || 'sedan';
+
   return (
     <div className="p-8 text-slate-100 flex-1 overflow-auto">
       <div className="mx-auto max-w-6xl flex flex-col gap-6">
@@ -28,7 +33,14 @@ export default function AnalyticsPage({
               aiAgentOptimized={aiAgentOptimized} 
               onToggleAIAgent={() => setAiAgentOptimized(!aiAgentOptimized)} 
             />
-            <CostSavingsCalculator fuelUsed={telemetry.activeFuelUsed} fuelPrice={fuelPrice} setFuelPrice={setFuelPrice} aiAgentOptimized={aiAgentOptimized} />
+            <CostSavingsCalculator 
+              fuelUsed={telemetry.activeFuelUsed} 
+              fuelPrice={fuelPrice} 
+              setFuelPrice={setFuelPrice} 
+              currentSpeed={telemetry.speed}
+              vehicleProfile={vehicleProfile}
+              activeDistance={25}
+            />
           </div>
         </div>
       </div>

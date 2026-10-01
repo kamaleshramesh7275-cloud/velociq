@@ -16,6 +16,15 @@ import MaintenancePage from './pages/MaintenancePage';
 import DriverSafetyPage from './pages/DriverSafetyPage';
 import SecurityPage from './pages/SecurityPage';
 import EngineTwinPage from './pages/EngineTwinPage';
+import { 
+  calculateLimpHomeSpeed, 
+  calculateKineticStopPenalty, 
+  VEHICLE_PHYSICS_PROFILES 
+} from './utils/speedMileagePhysics';
+import { 
+  DEFAULT_ROAD_COORDINATES, 
+  interpolateRoadPosition 
+} from './utils/osrmRouting';
 
 function SimulationWrapper() {
   const { activeVehicle, activeDriver } = useFleet();
@@ -58,6 +67,21 @@ function SimulationWrapper() {
   // Weather State
   const [weather, setWeather] = useState(null);
 
+  // Speed & Mileage Advanced Intelligence States
+  const [isLimpModeActive, setIsLimpModeActive] = useState(false);
+  const [trafficSignal, setTrafficSignal] = useState({
+    distanceMeters: 420,
+    phase: 'GREEN',
+    timeRemainingSec: 24,
+    cycleTotal: 35
+  });
+  const [kineticWaste, setKineticWaste] = useState({
+    stopsCount: 0,
+    energyDissipatedKj: 0,
+    fuelWastedLiters: 0,
+    costPenalty: 0
+  });
+
   // Telemetry Central State
   const [telemetry, setTelemetry] = useState({
     speed: 55.2,
@@ -78,10 +102,11 @@ function SimulationWrapper() {
     tripCoordinates: [],
     route: {
       progress: 0,
-      lat: 28.6139,
-      lon: 77.2090,
-      startName: 'Fleet Hub (City Center)',
-      endName: 'Airport Cargo Terminal',
+      lat: DEFAULT_ROAD_COORDINATES[0][0],
+      lon: DEFAULT_ROAD_COORDINATES[0][1],
+      heading: 0,
+      startName: 'Fleet Hub (Connaught Place)',
+      endName: 'Airport Cargo Terminal (IGI)',
       etaMinutes: 30
     }
   });
@@ -117,6 +142,65 @@ function SimulationWrapper() {
     const interval = setInterval(fetchWeather, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // GLOSA Traffic Light Simulator Tick (1 second interval)
+  useEffect(() => {
+    if (!isConnected || securityState.isImmobilized) return;
+
+    const signalInterval = setInterval(() => {
+      setTrafficSignal((prev) => {
+        let newTime = prev.timeRemainingSec - 1;
+        let newPhase = prev.phase;
+        let newDistance = Math.max(0, prev.distanceMeters - (telemetry.speed / 3.6));
+
+        if (newTime <= 0) {
+          if (prev.phase === 'GREEN') {
+            newPhase = 'YELLOW';
+            newTime = 4;
+          } else if (prev.phase === 'YELLOW') {
+            newPhase = 'RED';
+            newTime = 18;
+          } else {
+            newPhase = 'GREEN';
+            newTime = 25;
+          }
+        }
+
+        if (newDistance <= 5) {
+          newDistance = Math.floor(450 + Math.random() * 400);
+          newPhase = Math.random() > 0.4 ? 'GREEN' : 'RED';
+          newTime = newPhase === 'GREEN' ? 22 : 16;
+        }
+
+        return {
+          ...prev,
+          distanceMeters: Math.round(newDistance),
+          phase: newPhase,
+          timeRemainingSec: newTime
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(signalInterval);
+  }, [isConnected, securityState.isImmobilized, telemetry.speed]);
+
+  const handleSimulateStop = () => {
+    const massKg = VEHICLE_PHYSICS_PROFILES[vehicleProfile]?.massKg || 1400;
+    const penalty = calculateKineticStopPenalty(telemetry.speed, 0, massKg);
+    setKineticWaste((prev) => ({
+      stopsCount: prev.stopsCount + 1,
+      energyDissipatedKj: prev.energyDissipatedKj + penalty.energyKj,
+      fuelWastedLiters: prev.fuelWastedLiters + penalty.fuelWastedLiters,
+      costPenalty: prev.costPenalty + penalty.costPenalty
+    }));
+    setTelemetry((prev) => ({
+      ...prev,
+      speed: 0,
+      rpm: 750,
+      score: Math.max(0, prev.score - 2.5),
+      events: [{ label: 'Full Stop (GLOSA Lost)', delta: -2.5 }, ...prev.events.slice(0, 3)]
+    }));
+  };
 
   // Main Telemetry Simulator Loop
   useEffect(() => {
@@ -157,12 +241,23 @@ function SimulationWrapper() {
            maxSpeed = maxSpeed * 0.7; // AI slows down the car safely in bad weather
         }
 
+        // Limp-Home Velocity Governor Enforced Speed Ceiling
+        if (isLimpModeActive) {
+          const profile = VEHICLE_PHYSICS_PROFILES[vehicleProfile] || VEHICLE_PHYSICS_PROFILES.sedan;
+          const currentFuelLiters = (profile.tankCapacityLiters * prev.fuel) / 100;
+          const remainingDist = Math.max(0, 25 - prev.tripMileage);
+          const limp = calculateLimpHomeSpeed(remainingDist, currentFuelLiters, vehicleProfile);
+          if (limp.recommendedSpeedKmh) {
+            maxSpeed = Math.min(maxSpeed, limp.recommendedSpeedKmh);
+          }
+        }
+
         let speedDelta = (Math.random() - 0.45) * 6;
         if (aiAgentOptimized) {
           speedDelta = (Math.random() - 0.45) * 2.5;
         }
-        if (aiNavigatorEnabled && isBadWeather && prev.speed > maxSpeed) {
-           speedDelta = -3.0; // AI applies gentle braking to reach safe speed
+        if ((aiNavigatorEnabled && isBadWeather && prev.speed > maxSpeed) || (isLimpModeActive && prev.speed > maxSpeed)) {
+           speedDelta = -3.2; // AI / Governor applies gentle braking to reach safe speed
         }
 
         const newSpeed = Math.max(0, Math.min(maxSpeed, prev.speed + speedDelta));
@@ -202,9 +297,12 @@ function SimulationWrapper() {
 
         let newLat = prev.route.lat;
         let newLon = prev.route.lon;
+        let newHeading = prev.route.heading || 0;
         if (newProgress < 100 && speedVal > 0) {
-          newLat = prev.route.lat + (speedVal / 3600) * 0.3 * 0.00009;
-          newLon = prev.route.lon + (speedVal / 3600) * 0.3 * 0.00011;
+          const roadPos = interpolateRoadPosition(DEFAULT_ROAD_COORDINATES, newProgress);
+          newLat = roadPos.lat;
+          newLon = roadPos.lon;
+          newHeading = roadPos.heading;
         }
 
         const newEtaMinutes = speedVal > 0 ? ((25 - newTripMileage) / speedVal) * 60 : 0;
@@ -264,6 +362,17 @@ function SimulationWrapper() {
                penalty: scorePenalty,
                speed: speedVal.toFixed(1)
              }, ...logs].slice(0, 10));
+
+             if (eventLabel === 'Harsh Brake') {
+               const mass = VEHICLE_PHYSICS_PROFILES[vehicleProfile]?.massKg || 1400;
+               const penalty = calculateKineticStopPenalty(prev.speed, speedVal, mass);
+               setKineticWaste((kw) => ({
+                 stopsCount: kw.stopsCount + (speedVal < 5 ? 1 : 0),
+                 energyDissipatedKj: kw.energyDissipatedKj + penalty.energyKj,
+                 fuelWastedLiters: kw.fuelWastedLiters + penalty.fuelWastedLiters,
+                 costPenalty: kw.costPenalty + penalty.costPenalty
+               }));
+             }
           }
         } else if (rand < 0.2) {
           updatedScore = Math.min(100, prev.score + 0.1);
@@ -358,6 +467,7 @@ function SimulationWrapper() {
             progress: newProgress,
             lat: newLat,
             lon: newLon,
+            heading: newHeading,
             startName: prev.route.startName,
             endName: prev.route.endName,
             etaMinutes: newEtaMinutes
@@ -405,8 +515,9 @@ function SimulationWrapper() {
       route: {
         ...prev.route,
         progress: 0,
-        lat: 28.6139,
-        lon: 77.2090,
+        lat: DEFAULT_ROAD_COORDINATES[0][0],
+        lon: DEFAULT_ROAD_COORDINATES[0][1],
+        heading: 0,
         etaMinutes: 30
       }
     }));
@@ -452,7 +563,12 @@ function SimulationWrapper() {
       aiThoughtLogs,
       securityState,
       setSecurityState,
-      safetyLog
+      safetyLog,
+      isLimpModeActive,
+      setIsLimpModeActive,
+      trafficSignal,
+      kineticWaste,
+      handleSimulateStop
     }}>
       <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_35%),linear-gradient(135deg,#020617_0%,#030712_100%)]">
         <Sidebar 
@@ -481,6 +597,8 @@ function SimulationWrapper() {
                 spiffsCount={spiffsCount}
                 handleClearDTCs={handleClearDTCs} 
                 handleTriggerDTC={handleTriggerDTC} 
+                weather={weather}
+                fuelPrice={fuelPrice}
               />
             } />
             <Route path="/navigation" element={
@@ -493,6 +611,11 @@ function SimulationWrapper() {
                 aiThoughtLogs={aiThoughtLogs}
                 handleEndTrip={handleEndTrip}
                 handleClearHistory={handleClearHistory}
+                isLimpModeActive={isLimpModeActive}
+                onToggleLimpMode={() => setIsLimpModeActive(!isLimpModeActive)}
+                trafficSignal={trafficSignal}
+                kineticWaste={kineticWaste}
+                onSimulateStop={handleSimulateStop}
               />
             } />
             <Route path="/analytics" element={

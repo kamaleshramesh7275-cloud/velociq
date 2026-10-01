@@ -58,6 +58,100 @@ export const TWIN_FAULT_SCENARIOS = {
   }
 };
 
+export function buildComponentRiskMap({ diagnostics = {}, thermal = {}, wear = {}, telemetry = {}, activeScenario = 'NOMINAL' } = {}) {
+  const map = {};
+  const priority = { healthy: 0, watch: 1, damaged: 2, critical: 3 };
+
+  const setRisk = (componentId, level) => {
+    if (!componentId) return;
+    const current = map[componentId];
+    if (!current || priority[level] > priority[current]) {
+      map[componentId] = level;
+    }
+  };
+
+  const activeDTCs = diagnostics.activeDTCs || [];
+
+  if (activeScenario === 'CYL_3_MISFIRE') {
+    setRisk('coil_3', 'critical');
+    setRisk('coil_4', 'watch');
+    setRisk('exhaust_runner_3', 'damaged');
+    setRisk('exhaust_runner_4', 'watch');
+    setRisk('catalytic_converter', 'critical');
+    setRisk('cylinder_head', 'damaged');
+  }
+
+  if (activeScenario === 'THERMOSTAT_STUCK') {
+    setRisk('thermostat_housing', 'critical');
+    setRisk('coolant_hard_line', 'damaged');
+    setRisk('cylinder_head', 'damaged');
+  }
+
+  if (activeScenario === 'OIL_STARVATION') {
+    setRisk('oil_filter', 'critical');
+    setRisk('oil_pressure_sensor', 'critical');
+    setRisk('oil_pan', 'critical');
+    setRisk('crankshaft', 'damaged');
+  }
+
+  if (activeScenario === 'INTAKE_VACUUM_LEAK') {
+    setRisk('intake_plenum', 'critical');
+    setRisk('cylinder_head', 'damaged');
+  }
+
+  if (activeScenario === 'TURBO_OVERBOOST') {
+    setRisk('exhaust_runner_1', 'damaged');
+    setRisk('exhaust_runner_2', 'damaged');
+    setRisk('catalytic_converter', 'critical');
+  }
+
+  if (activeDTCs.includes('P0217') || activeDTCs.includes('P0128')) {
+    setRisk('thermostat_housing', 'critical');
+  }
+
+  if (activeDTCs.includes('P0524')) {
+    setRisk('oil_filter', 'critical');
+    setRisk('oil_pressure_sensor', 'critical');
+  }
+
+  if (activeDTCs.includes('P0171') || activeDTCs.includes('P0106')) {
+    setRisk('intake_plenum', 'critical');
+  }
+
+  if (thermal.coolantTemp >= 111) {
+    setRisk('thermostat_housing', 'critical');
+    setRisk('coolant_hard_line', 'damaged');
+  } else if (thermal.coolantTemp >= 100) {
+    setRisk('thermostat_housing', 'damaged');
+  }
+
+  if (thermal.headTemp >= 108) {
+    setRisk('cylinder_head', 'critical');
+  } else if (thermal.headTemp >= 100) {
+    setRisk('cylinder_head', 'damaged');
+  }
+
+  if (telemetry.oilPressurePsi < 16) {
+    setRisk('oil_filter', 'critical');
+    setRisk('oil_pressure_sensor', 'critical');
+    setRisk('oil_pan', 'damaged');
+  } else if (telemetry.oilPressurePsi < 20) {
+    setRisk('oil_filter', 'damaged');
+  }
+
+  if (wear && wear.crankBearings >= 15) {
+    setRisk('oil_pan', 'critical');
+  } else if (wear && wear.crankBearings >= 8) {
+    setRisk('oil_pan', 'damaged');
+  }
+
+  if (wear && wear.turboBearings >= 12) {
+    setRisk('catalytic_converter', 'damaged');
+  }
+
+  return map;
+}
+
 /**
  * Multi-physics simulation step
  */
