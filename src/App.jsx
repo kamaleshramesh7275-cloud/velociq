@@ -24,6 +24,7 @@ import DriverPortalPage from './pages/DriverPortalPage';
 import DigitalCityPage from './pages/DigitalCityPage';
 import RemoteControllerPage from './pages/RemoteControllerPage';
 import CommandBar from './components/CommandBar';
+import AICopilotChatbot from './components/AICopilotChatbot';
 import { 
   calculateLimpHomeSpeed, 
   calculateKineticStopPenalty, 
@@ -699,6 +700,9 @@ function SimulationWrapper() {
           <div className="flex-1 w-full min-w-0 pb-16 md:pb-0">
             <Outlet />
           </div>
+
+          {/* Global Groq-Powered AI Telematics Copilot */}
+          <AICopilotChatbot />
 
           {/* Native Mobile Bottom Navigation Bar */}
           <MobileBottomNav 
