@@ -11,6 +11,7 @@ import {
 import { Drawer, CommandPalette, SeverityBadge, StatusPill, WarningLight, RacingStripe } from './ui';
 import RoleSwitcher from './RoleSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
+import { useTheme } from '../context/ThemeContext';
 
 export default function CommandBar({
   isConnected,
@@ -22,6 +23,7 @@ export default function CommandBar({
   telemetry,
   onToggleMobileMenu,
 }) {
+  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { activeVehicle, activeDriver } = useFleet();
@@ -63,9 +65,13 @@ export default function CommandBar({
           </button>
 
           <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs min-w-0">
-            <span className="font-display font-black text-sm tracking-wider text-[#0B3D91] shrink-0">VELOCIQ</span>
+            <span className="font-display font-black text-sm tracking-wider shrink-0" style={{ color: theme.secondary || theme.primary }}>
+              VELOCIQ
+            </span>
             <span className="text-slate-300 font-bold hidden sm:inline">/</span>
-            <span className="text-[#0B3D91] font-bold hidden sm:inline">{currentCrumb.section}</span>
+            <span className="font-bold hidden sm:inline" style={{ color: theme.secondary || theme.primary }}>
+              {currentCrumb.section}
+            </span>
             <span className="text-slate-300 font-bold">/</span>
             <span className="text-slate-900 font-black tracking-wide truncate">
               {currentCrumb.page}

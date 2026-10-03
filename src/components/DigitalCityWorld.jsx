@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { onControlPacket, sendFeedback } from '../services/telemetryBridge';
 import { useFleet } from '../context/FleetContext';
+import { useTheme } from '../context/ThemeContext';
 import { VEHICLE_PHYSICS_PROFILES } from '../utils/speedMileagePhysics';
 
 // ─── Constants & Physics ───────────────────────────────────────────────────
@@ -337,14 +338,14 @@ function buildPhotorealisticCity(scene) {
 }
 
 // ─── Hyper-Realistic Vehicle Builder with PBR & Glow ────────────────────────
-function buildPhotorealisticCar(scene) {
+function buildPhotorealisticCar(scene, carColor = 0x1D4ED8) {
   const carRoot = new THREE.Group();
   const carChassis = new THREE.Group(); // Nested for pitch and roll physics
   carRoot.add(carChassis);
 
   // 1. High-Performance Metallic Car Paint Material
   const paintMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1D4ED8, // Deep Performance Sapphire Blue
+    color: carColor, // Dynamic Automotive Paint Color
     metalness: 0.9,
     roughness: 0.18,
     clearcoat: 1.0,
@@ -632,6 +633,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
   const [weather, setWeather] = useState('clear');       // clear|rain|fog
   const [stats, setStats] = useState({ speed: 0, rpm: 800, gear: 'P', latG: '0.00', fuelL: '50.0' });
 
+  const { theme } = useTheme();
   const { activeVehicle } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
   const physProfile = VEHICLE_PHYSICS_PROFILES[vehicleProfile] || VEHICLE_PHYSICS_PROFILES.sedan;
@@ -681,7 +683,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
 
     // ── 4. Build Environment & Vehicle ──────────────────────────────────────
     const city = buildPhotorealisticCity(scene);
-    const car = buildPhotorealisticCar(scene);
+    const car = buildPhotorealisticCar(scene, theme?.carColor || 0x1D4ED8);
     const rain = buildRainParticles(scene);
 
     // ── 5. Autonomous AI Traffic Fleet ──────────────────────────────────────
@@ -1096,7 +1098,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
       unsubControl();
       renderer.dispose();
     };
-  }, [vehicleProfile, worldTime, weather, cameraMode]);
+  }, [vehicleProfile, worldTime, weather, cameraMode, theme]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 480, background: '#0A0E15' }}>

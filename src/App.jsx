@@ -673,7 +673,7 @@ function SimulationWrapper() {
       setModelState,
       vehicleProfile
     }}>
-      <div className="flex h-screen overflow-hidden bg-[#F4F6F9] text-[#0A0F1D]">
+      <div className="flex h-screen overflow-hidden bg-[var(--bg-base)] text-[var(--text-hi)] transition-colors duration-300">
         <Sidebar 
           isConnected={isConnected} 
           setIsConnected={setIsConnected} 

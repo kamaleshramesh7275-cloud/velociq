@@ -20,6 +20,7 @@ import {
 } from './icons';
 import { CarSilhouette, PlateBadge } from './ui';
 import VehicleGarageModal from './VehicleGarageModal';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({
   isConnected,
@@ -31,6 +32,7 @@ export default function Sidebar({
   isMobileOpen = false,
   onCloseMobile,
 }) {
+  const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isGarageOpen, setIsGarageOpen] = useState(false);
   const { activeVehicle, monitorVehicle, vehicles } = useFleet();
@@ -120,18 +122,35 @@ export default function Sidebar({
                 className={({ isActive }) =>
                   `group relative flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-mono transition-all duration-150 ${
                     isActive
-                      ? 'bg-blue-50/80 text-[#0B3D91] font-bold racing-stripe-v shadow-xs'
+                      ? 'font-bold shadow-xs'
                       : 'text-text-mid hover:text-text-hi hover:bg-slate-100/70'
                   } ${isCollapsed && !isMobile ? 'justify-center px-0' : ''}`
                 }
+                style={({ isActive }) =>
+                  isActive
+                    ? {
+                        backgroundColor: theme.badgeBg,
+                        color: theme.secondary || theme.primary,
+                        borderLeft: `3px solid ${theme.primary}`,
+                        boxShadow: `0 2px 8px ${theme.glow}`,
+                      }
+                    : {}
+                }
                 title={isCollapsed && !isMobile ? item.label : undefined}
               >
-                <item.Icon className="w-4 h-4 shrink-0 transition-colors group-hover:text-[#0B3D91]" />
+                <item.Icon className="w-4 h-4 shrink-0 transition-colors" style={{ color: theme.primary }} />
                 {(!isCollapsed || isMobile) && (
                   <span className="flex-1 truncate tracking-tight">{item.label}</span>
                 )}
                 {(!isCollapsed || isMobile) && item.badge && (
-                  <span className="rounded bg-[#0B3D91]/10 border border-[#0B3D91]/20 px-1.5 py-0.2 font-mono text-[9px] font-bold text-[#0B3D91]">
+                  <span
+                    className="rounded px-1.5 py-0.2 font-mono text-[9px] font-bold"
+                    style={{
+                      backgroundColor: theme.badgeBg,
+                      border: `1px solid ${theme.cardBorder}`,
+                      color: theme.badgeText || theme.primary,
+                    }}
+                  >
                     {item.badge}
                   </span>
                 )}
@@ -241,12 +260,17 @@ export default function Sidebar({
             {/* Header with Close Button */}
             <div className="flex h-14 items-center justify-between px-4 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 text-slate-900">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 shadow-2xs">
-                  <SpeedArcLogo className="w-4 h-4 text-[#0B3D91]" />
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border shadow-2xs"
+                  style={{ backgroundColor: theme.badgeBg, borderColor: theme.cardBorder }}
+                >
+                  <SpeedArcLogo className="w-4 h-4" style={{ color: theme.primary }} />
                 </div>
                 <div className="flex flex-col">
                   <span className="font-display text-sm font-black tracking-wider text-slate-900">VELOCIQ</span>
-                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#0B3D91] font-bold">Mobile Cockpit</span>
+                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] font-bold" style={{ color: theme.secondary || theme.primary }}>
+                    Mobile Cockpit
+                  </span>
                 </div>
               </div>
               <button
@@ -274,15 +298,18 @@ export default function Sidebar({
         {/* Brand & Collapse Header - Luminous Aerospace Design */}
         <div className="flex h-16 items-center justify-between px-4 border-b border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100/80 text-slate-900">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 shadow-xs">
-              <SpeedArcLogo className="w-5 h-5 text-[#0B3D91]" />
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-xs"
+              style={{ backgroundColor: theme.badgeBg, borderColor: theme.cardBorder }}
+            >
+              <SpeedArcLogo className="w-5 h-5" style={{ color: theme.primary }} />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
                 <span className="font-display text-base font-black tracking-wider text-slate-900">
                   VELOCIQ
                 </span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#0B3D91] font-bold">
+                <span className="font-mono text-[9px] uppercase tracking-[0.25em] font-bold" style={{ color: theme.secondary || theme.primary }}>
                   Precision Telematics
                 </span>
               </div>

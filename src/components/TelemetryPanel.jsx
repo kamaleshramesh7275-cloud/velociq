@@ -3,6 +3,7 @@ import { AnalogDial } from './ui/AnalogDial';
 import { WarningLight } from './ui/WarningLight';
 import { PulseDot, ThermometerIcon, WindIcon } from './icons';
 import { useFleet } from '../context/FleetContext';
+import { useTheme } from '../context/ThemeContext';
 import { getEngineType } from '../config/engineTypes';
 
 export default function TelemetryPanel({
@@ -11,6 +12,7 @@ export default function TelemetryPanel({
   speedLimit = 90,
   activeDTCs = []
 }) {
+  const { theme } = useTheme();
   const fleet = useFleet ? useFleet() : null;
   const activeVehicle = fleet?.activeVehicle;
   const engineTypeId = activeVehicle?.engineTypeId || 'i4_petrol';
@@ -64,8 +66,15 @@ export default function TelemetryPanel({
         {/* Top Status Bar: Aerospace Telematics Flight Header */}
         <div className="flex flex-wrap items-center justify-between border-b border-slate-200/90 pb-2.5 sm:pb-3 mb-3 sm:mb-4 gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#0B3D91]">
-              <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border"
+              style={{
+                backgroundColor: theme.badgeBg,
+                borderColor: theme.cardBorder,
+                color: theme.secondary || theme.primary,
+              }}
+            >
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: theme.primary }} />
               <span className="font-display text-[11px] uppercase font-bold tracking-[0.18em]">
                 AERO INSTRUMENT BINNACLE
               </span>
