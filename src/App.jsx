@@ -118,7 +118,7 @@ function SimulationWrapper() {
       progress: 0,
       lat: DEFAULT_ROAD_COORDINATES[0][0],
       lon: DEFAULT_ROAD_COORDINATES[0][1],
-      heading: 0,
+      heading: 237,
       startName: 'Fleet Hub (Connaught Place)',
       endName: 'Airport Cargo Terminal (IGI)',
       etaMinutes: 30
@@ -376,7 +376,7 @@ function SimulationWrapper() {
 
         let newLat = prev.route.lat;
         let newLon = prev.route.lon;
-        let newHeading = prev.route.heading || 0;
+        let newHeading = prev.route.heading || 237;
         if (newProgress < 100 && speedVal > 0) {
           const roadPos = interpolateRoadPosition(DEFAULT_ROAD_COORDINATES, newProgress);
           newLat = roadPos.lat;
@@ -606,7 +606,7 @@ function SimulationWrapper() {
         progress: 0,
         lat: DEFAULT_ROAD_COORDINATES[0][0],
         lon: DEFAULT_ROAD_COORDINATES[0][1],
-        heading: 0,
+        heading: 237,
         etaMinutes: 30
       }
     }));
@@ -816,6 +816,22 @@ function DriverPortalPageWrapper() {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') !== 'false');
+
+  const handleLogin = () => {
+    sessionStorage.setItem('velociq_logged_in', 'true');
+    setIsAuthenticated(true);
+  };
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') !== 'false');
+    };
+
+    window.addEventListener('storage', syncAuthState);
+    return () => window.removeEventListener('storage', syncAuthState);
+  }, []);
+
   return (
     <ThemeProvider>
       <FleetProvider>

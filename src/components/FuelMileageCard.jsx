@@ -204,7 +204,6 @@ export default function FuelMileageCard({ telemetry = {} }) {
           <span className="text-[11px] text-slate-600 font-medium">
             {isBev ? 'Zero Tailpipe Emissions' : `${(engineType?.co2Factor || 2.31).toFixed(2)} kg CO₂ / ${engineType?.mileageUnit?.split('/')[1] || 'L'}`}
           </span>
-          </span>
         </div>
         <div className="text-right">
           <span className="font-mono text-base font-bold text-[#0B3D91] tabular-nums">

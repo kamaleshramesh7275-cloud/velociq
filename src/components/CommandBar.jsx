@@ -115,7 +115,6 @@ export default function CommandBar({
             <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
             <span>3D CITY WORLD</span>
           </button>
-          </button>
         </div>
 
         {/* Status Indicators & Action Chips */}

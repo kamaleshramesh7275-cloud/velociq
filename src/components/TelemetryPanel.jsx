@@ -274,8 +274,6 @@ export default function TelemetryPanel({
               {isBev ? `${telemetry.packVoltageV || 360}V NOM` : 'CHARGING'}
             </span>
           </div>
-            </span>
-          </div>
         </div>
 
       </div>
