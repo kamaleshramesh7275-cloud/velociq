@@ -141,7 +141,7 @@ export default function TelemetryPanel({
               value={rpm}
               min={0}
               max={tachMax}
-              label={isBev ? "ROTOR SPEED" : "TACHOMETER"}
+              label="TACHOMETER"
               unit="rpm"
               majorStep={majorStep}
               minorStep={minorStep}
@@ -161,7 +161,7 @@ export default function TelemetryPanel({
               <ThermometerIcon className={`w-4 h-4 ${isCoolantAlert ? 'text-[#D7263D]' : 'text-slate-400'}`} />
               <div>
                 <span className="font-mono text-[9px] text-slate-400 uppercase block">
-                  {isBev ? 'MOTOR COOLING' : 'COOLANT TEMP'}
+                  COOLANT TEMP
                 </span>
                 <span className="font-mono text-sm font-bold text-white tabular-nums">
                   {coolant.toFixed(1)}°C
@@ -175,45 +175,39 @@ export default function TelemetryPanel({
             </span>
           </div>
 
-          {/* Box 2: Powertrain Specific (Airflow / Inverter / DPF / CNG) */}
+          {/* Box 2: Mass Air Flow Sensor */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
             <div className="flex items-center gap-2">
               <WindIcon className="w-4 h-4 text-blue-400" />
               <div>
                 <span className="font-mono text-[9px] text-slate-400 uppercase block">
-                  {isBev ? 'INVERTER TEMP' : isDiesel ? 'DPF SOOT LOAD' : isCng ? 'CNG TANK' : 'MASS AIR FLOW'}
+                  MASS AIR FLOW
                 </span>
                 <span className="font-mono text-sm font-bold text-white tabular-nums">
-                  {isBev
-                    ? `${(telemetry.inverterTempC || 52).toFixed(1)}°C`
-                    : isDiesel
-                    ? `${(telemetry.dpfSootPct || 24.2).toFixed(1)}%`
-                    : isCng
-                    ? `${(telemetry.cngTankBar || 185).toFixed(0)} BAR`
-                    : `${maf.toFixed(1)} g/s`}
+                  {`${maf.toFixed(1)} g/s`}
                 </span>
               </div>
             </div>
             <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-blue-300">
-              {isBev ? 'SiC POWER' : isDiesel ? (telemetry.dpfRegenActive ? 'REGEN ON' : 'PASSIVE DPF') : isCng ? (telemetry.fuelMode === 'petrol_fallback' ? 'PETROL BACKUP' : 'CNG ACTIVE') : 'ECU SENSOR'}
+              ECU SENSOR
             </span>
           </div>
 
-          {/* Box 3: Energy / Battery Bus */}
+          {/* Box 3: 12V Battery / Alternator Bus */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
             <div className="flex items-center gap-2">
               <PulseDot color="emerald" active={false} />
               <div>
                 <span className="font-mono text-[9px] text-slate-400 uppercase block">
-                  {isBev ? 'TRACTION PACK' : '12V BATTERY BUS'}
+                  12V BATTERY BUS
                 </span>
                 <span className="font-mono text-sm font-bold text-white tabular-nums">
-                  {isBev ? `${(telemetry.batterySocPct || 84.5).toFixed(1)}% SOC` : `${voltage.toFixed(2)} V`}
+                  {`${voltage.toFixed(2)} V`}
                 </span>
               </div>
             </div>
             <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
-              {isBev ? `${telemetry.packVoltageV || 360}V NOM` : 'CHARGING'}
+              CHARGING
             </span>
           </div>
         </div>
