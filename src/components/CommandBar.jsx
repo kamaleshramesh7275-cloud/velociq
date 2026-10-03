@@ -73,7 +73,7 @@ export default function CommandBar({
           <button
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="hidden md:flex items-center gap-2.5 rounded-xl border border-slate-300 bg-bg-sunken px-3.5 py-1.5 font-mono text-xs text-slate-700 hover:text-slate-950 hover:border-slate-400 transition"
+            className="hidden md:flex items-center gap-2.5 rounded-xl border border-slate-300 bg-bg-sunken px-3.5 py-1.5 font-mono text-xs text-slate-700 hover:text-slate-950 hover:border-slate-400 transition cursor-pointer"
           >
             <svg className="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -82,6 +82,19 @@ export default function CommandBar({
             <kbd className="rounded border border-slate-400 bg-white px-1.5 py-0.2 text-[10px] text-slate-800 font-mono font-bold shadow-xs">
               Ctrl+K
             </kbd>
+          </button>
+
+          {/* Mobile search icon button */}
+          <button
+            type="button"
+            onClick={() => setIsCommandOpen(true)}
+            className="md:hidden flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+            title="Search telematics or command..."
+            aria-label="Search"
+          >
+            <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </button>
         </div>
 
