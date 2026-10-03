@@ -95,17 +95,17 @@ export default function SimulatorPage({ telemetry }) {
 
   // Active simulated result
   const simResult = useMemo(() => {
-    return calculateMileageAtSpeed(targetSpeed, vehicleProfile, physicsOptions, currentEngineId);
-  }, [targetSpeed, vehicleProfile, physicsOptions, currentEngineId]);
+    return calculateMileageAtSpeed(targetSpeed, vehicleProfile, physicsOptions);
+  }, [targetSpeed, vehicleProfile, physicsOptions]);
 
   // Baseline live comparison result
   const baselineResult = useMemo(() => {
-    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0 }, currentEngineId);
-  }, [liveSpeed, liveProfile, currentEngineId]);
+    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0 });
+  }, [liveSpeed, liveProfile]);
 
   // Curve data points for dual-axis chart (Speed vs Mileage & Range)
   const curveData = useMemo(() => {
-    const rawCurve = generateSpeedMileageCurve(vehicleProfile, physicsOptions, currentEngineId);
+    const rawCurve = generateSpeedMileageCurve(vehicleProfile, physicsOptions);
     return rawCurve.map((pt) => {
       const rangeAtSpeed = Math.round(tankCapacityLiters * pt.kmPerL);
       return {
@@ -115,7 +115,7 @@ export default function SimulatorPage({ telemetry }) {
         dragPower: pt.dragPowerKw,
       };
     });
-  }, [vehicleProfile, physicsOptions, tankCapacityLiters, currentEngineId]);
+  }, [vehicleProfile, physicsOptions, tankCapacityLiters]);
 
   // KPI Calculations
   const simMileage = simResult.kmPerL;
@@ -127,7 +127,7 @@ export default function SimulatorPage({ telemetry }) {
   const cruiseFuelLiters = tripDistanceKm / Math.max(1, simMileage);
   const massKg = profile?.massKg || 1400;
   const stopPenalty = useMemo(() => {
-    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg, currentEngineId);
+    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg);
     const extraFuelLiters = (single.fuelWastedLiters || 0) * stopEventsCount;
     const totalEnergyDissipatedKj = (single.energyKj || 0) * stopEventsCount;
     const totalCostPenalty = (single.costPenalty || 0) * stopEventsCount;
@@ -139,7 +139,7 @@ export default function SimulatorPage({ telemetry }) {
       costPenalty: totalCostPenalty,
       isRecovered: single.isRecovered
     };
-  }, [targetSpeed, massKg, stopEventsCount, currentEngineId]);
+  }, [targetSpeed, massKg, stopEventsCount]);
 
   const totalFuelLiters = cruiseFuelLiters + (stopPenalty.extraFuelLiters || 0);
   const totalFuelCost = totalFuelLiters * fuelPrice;
