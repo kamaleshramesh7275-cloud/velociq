@@ -18,6 +18,7 @@ export default function CommandBar({
   aiThoughtLogs = [],
   activeDTCs = [],
   securityState,
+  telemetry,
   onToggleMobileMenu,
 }) {
   const location = useLocation();
@@ -87,12 +88,19 @@ export default function CommandBar({
 
         {/* Status Indicators & Action Chips */}
         <div className="flex items-center gap-3">
-          {/* BLE Hardware Stream Pill */}
-          <StatusPill
-            label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
-            status={isConnected ? 'active' : 'idle'}
-            pulse={isConnected}
-          />
+          {/* Real-World Digital Twin Stream Pill */}
+          {telemetry?.isRealWorldLive && (Date.now() - (telemetry?.lastRealWorldUpdate || 0) < 4000) ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800 font-mono text-xs font-bold shadow-xs animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]" />
+              <span>REAL-WORLD 60Hz LIVE</span>
+            </div>
+          ) : (
+            <StatusPill
+              label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
+              status={isConnected ? 'active' : 'idle'}
+              pulse={isConnected}
+            />
+          )}
 
           {/* SPIFFS Packet Queue */}
           {!isConnected && spiffsCount > 0 && (

@@ -64,6 +64,7 @@ export default function Sidebar({
     {
       group: 'INSIGHTS',
       items: [
+        { path: '/world', label: 'Digital Twin City', Icon: DigitalTwinIcon, badge: '3D LIVE' },
         { path: '/digital-twin', label: 'Living Twin & Optimizer', Icon: DigitalTwinIcon, badge: 'AI LOOP' },
         { path: '/analytics', label: 'AI Analytics', Icon: AnalyticsIcon },
       ],
@@ -215,20 +216,20 @@ export default function Sidebar({
           {/* Drawer Content Container */}
           <div className="relative z-10 w-[280px] max-w-[85vw] h-full flex flex-col bg-white shadow-2xl">
             {/* Header with Close Button */}
-            <div className="flex h-14 items-center justify-between px-4 border-b border-slate-800 bg-[#0A0F1C] text-white">
+            <div className="flex h-14 items-center justify-between px-4 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 text-slate-900">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-400/30">
-                  <SpeedArcLogo className="w-4 h-4 text-blue-400" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 shadow-2xs">
+                  <SpeedArcLogo className="w-4 h-4 text-[#0B3D91]" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-display text-sm font-bold tracking-wider text-white">VELOCIQ</span>
-                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-blue-400">Mobile Cockpit</span>
+                  <span className="font-display text-sm font-black tracking-wider text-slate-900">VELOCIQ</span>
+                  <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#0B3D91] font-bold">Mobile Cockpit</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={onCloseMobile}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -243,22 +244,22 @@ export default function Sidebar({
 
       {/* Desktop Persistent Sidebar */}
       <aside
-        className={`hidden md:flex relative z-30 flex-col border-r border-line bg-white shadow-xs transition-all duration-300 ease-in-out select-none ${
+        className={`hidden md:flex relative z-30 flex-col border-r border-slate-200 bg-white/95 backdrop-blur-md shadow-xs transition-all duration-300 ease-in-out select-none ${
           isCollapsed ? 'w-[72px]' : 'w-[264px]'
         }`}
       >
-        {/* Brand & Collapse Header - Permitted Dark Surface (Part of 10% dark) */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-800 bg-[#0A0F1C] text-white">
+        {/* Brand & Collapse Header - Luminous Aerospace Design */}
+        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100/80 text-slate-900">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-400/30">
-              <SpeedArcLogo className="w-5 h-5 text-blue-400" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 shadow-xs">
+              <SpeedArcLogo className="w-5 h-5 text-[#0B3D91]" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
-                <span className="font-display text-base font-bold tracking-wider text-white">
+                <span className="font-display text-base font-black tracking-wider text-slate-900">
                   VELOCIQ
                 </span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-blue-400">
+                <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#0B3D91] font-bold">
                   Precision Telematics
                 </span>
               </div>
@@ -268,7 +269,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 bg-white transition shadow-2xs"
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`} />

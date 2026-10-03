@@ -20,6 +20,8 @@ import EngineTwinPage from './pages/EngineTwinPage';
 import SimulatorPage from './pages/SimulatorPage';
 import LivingDigitalTwinPage from './pages/LivingDigitalTwinPage';
 import DriverPortalPage from './pages/DriverPortalPage';
+import DigitalCityPage from './pages/DigitalCityPage';
+import RemoteControllerPage from './pages/RemoteControllerPage';
 import CommandBar from './components/CommandBar';
 import { 
   calculateLimpHomeSpeed, 
@@ -224,6 +226,63 @@ function SimulationWrapper() {
 
     const interval = setInterval(() => {
       setTelemetry((prev) => {
+        // ── STRICT REAL-WORLD TELEMETRY PIPELINE ────────────────────────────
+        // When 3D digital world or remote phone controller is active, do NOT mock or overwrite
+        const isLiveTwinActive = prev.isRealWorldLive && (Date.now() - (prev.lastRealWorldUpdate || 0) < 3500);
+
+        if (isLiveTwinActive) {
+          const speedVal = prev.speed || 0;
+          const newTripMileage = prev.tripMileage + (speedVal / 3600) * 0.3;
+          const newProgress = Math.min(100, (newTripMileage / 25) * 100);
+          const newDuration = prev.activeDuration + 0.3;
+          const fuelBurnedThisTick = ((prev.maf || 2) * 0.33 / 3600) * 0.3;
+          const newActiveFuelUsed = prev.activeFuelUsed + fuelBurnedThisTick;
+
+          // Real driving safety events from true G-forces
+          let scorePenalty = 0;
+          let eventLabel = '';
+          if (prev.longG < -0.45) {
+            scorePenalty = 3.5;
+            eventLabel = 'Harsh Brake (Digital Twin)';
+          } else if (prev.longG > 0.45) {
+            scorePenalty = 2.5;
+            eventLabel = 'Rapid Accel (Digital Twin)';
+          } else if (Math.abs(prev.latG || 0) > 0.40) {
+            scorePenalty = 2.0;
+            eventLabel = 'Hard Cornering (Digital Twin)';
+          } else if (prev.rpm > 5800) {
+            scorePenalty = 1.0;
+            eventLabel = 'Engine Overrev (Digital Twin)';
+          }
+
+          let updatedScore = prev.score;
+          let updatedEvents = prev.events;
+          if (eventLabel) {
+            updatedScore = Math.max(0, prev.score - scorePenalty);
+            updatedEvents = [{ label: eventLabel, delta: -scorePenalty }, ...prev.events.slice(0, 3)];
+            setSafetyLog(logs => [{
+              id: Date.now(),
+              time: new Date().toLocaleTimeString(),
+              type: eventLabel,
+              penalty: scorePenalty,
+              speed: speedVal.toFixed(1)
+            }, ...logs].slice(0, 10));
+          }
+
+          return {
+            ...prev,
+            tripMileage: newTripMileage,
+            activeDuration: newDuration,
+            activeFuelUsed: newActiveFuelUsed,
+            score: updatedScore,
+            events: updatedEvents,
+            route: {
+              ...prev.route,
+              progress: newProgress,
+            }
+          };
+        }
+
         let maxSpeed = 120;
         let maxRpm = 6800;
         let maxMaf = 20.0;
@@ -632,6 +691,7 @@ function SimulationWrapper() {
             aiThoughtLogs={aiThoughtLogs}
             activeDTCs={activeDTCs}
             securityState={securityState}
+            telemetry={telemetry}
             onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
           />
           
@@ -772,6 +832,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+        {/* Standalone phone controller — no auth, no sidebar */}
+        <Route path="/remote" element={<RemoteControllerPage />} />
         <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
           <Route path="/dashboard" element={<TelemetryPageWrapper />} />
           <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
@@ -784,6 +846,7 @@ export default function App() {
           <Route path="/fleet" element={<FleetManager />} />
           <Route path="/safety" element={<DriverSafetyPage />} />
           <Route path="/security" element={<SecurityPage />} />
+          <Route path="/world" element={<DigitalCityPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

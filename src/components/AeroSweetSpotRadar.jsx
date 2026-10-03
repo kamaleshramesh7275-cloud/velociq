@@ -96,51 +96,171 @@ export default function AeroSweetSpotRadar({
   };
 
   return (
-    <Card className="p-3.5 sm:p-6 bg-white border border-line shadow-showroom overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-3 sm:pb-4 mb-3 sm:mb-4">
+    <Card className="p-4 sm:p-7 aerogel-card border border-slate-200/90 shadow-lg overflow-hidden">
+      {/* Header with Technical Aerospace Badges */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200/80 pb-3 sm:pb-4 mb-4">
         <div>
-          <SectionLabel label="AERODYNAMICS & BSFC PHYSICS" />
-          <h2 className="font-display text-lg sm:text-xl font-bold text-text-hi mt-0.5 tracking-tight">
-            Speed vs. Mileage Efficiency Island
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 border border-blue-200 text-[#0B3D91]">
+              AEROSPACE DYNAMICS
+            </span>
+            <span className="font-mono text-[10px] text-slate-500 font-semibold">
+              BSFC FLIGHT ENVELOPE
+            </span>
+          </div>
+          <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-1 tracking-tight">
+            Wind Tunnel Dynamics & Cubic Drag Island
           </h2>
+          <p className="font-mono text-xs text-slate-500 mt-0.5">
+            Cubic velocity drag resistance equation: <code className="text-[#0B3D91] font-bold">P_drag = 0.5 · ρ · C_d · A · v³</code>
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="font-display text-xs font-bold uppercase text-text-lo">AERO SWEET SPOT:</span>
-          <span className="font-mono text-xs font-bold px-3 py-1 rounded-full border border-[#0F9D6B]/30 bg-[#0F9D6B]/10 text-[#0F9D6B] shadow-xs tabular-nums">
-            {sweetSpotSpeed} km/h (~{profile.peakMileageKmL} km/L)
-          </span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+            <span className="font-display text-xs font-bold uppercase text-slate-600">SWEET SPOT:</span>
+            <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700 tabular-nums">
+              {sweetSpotSpeed} km/h (~{profile.peakMileageKmL} km/L)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setHasRoofRack(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold border transition ${
+              hasRoofRack
+                ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {hasRoofRack ? 'ROOF RACK: MOUNTED (+0.05 Cd)' : '+ ADD ROOF RACK'}
+          </button>
         </div>
       </div>
 
-      {/* Main Parabolic Efficiency Chart (Light Background & Grid) */}
-      <div className="rounded-2xl border border-line bg-bg-sunken/40 p-2 sm:p-4 mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
-          <div>
-            <span className="font-display text-xs sm:text-sm font-bold uppercase tracking-wider text-text-hi block">
-              Quadratic Aerodynamic Decay Curve (P_drag ∝ v³)
+      {/* Aerodynamic Wind Tunnel Visualization Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
+        {/* Left: Wind Tunnel Streamline Simulation (Cols 1-5) */}
+        <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 via-white to-slate-100 p-3.5 sm:p-4 flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-display text-xs font-bold uppercase tracking-wider text-slate-700">
+              VIRTUAL WIND TUNNEL STREAMLINES
             </span>
-            <p className="font-mono text-[10px] sm:text-[11px] text-text-mid mt-0.5 leading-relaxed">
-              Green band indicates optimal laminar window (55-65 km/h). Drag rises cubically past 80 km/h.
-            </p>
+            <span className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded-full ${
+              currentSpeed <= 65 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+            }`}>
+              {currentSpeed <= 65 ? 'LAMINAR BOUNDARY' : 'TURBULENT WAKE'}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#0F9D6B]" />
-              <span className="text-text-mid text-[11px]">Laminar Zone</span>
+          {/* SVG Animated Wind Tunnel Graphic */}
+          <div className="relative w-full h-36 flex items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-inner overflow-hidden">
+            {/* Wind tunnel grid floor and roof */}
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-slate-300" />
+            <div className="absolute inset-x-0 bottom-0 h-[2px] bg-slate-300" />
+            
+            {/* Streamline Vectors */}
+            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 400 120">
+              <defs>
+                <linearGradient id="streamGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#0B3D91" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor={currentSpeed > 75 ? "#E11D48" : "#059669"} stopOpacity="0.9" />
+                  <stop offset="100%" stopColor={currentSpeed > 75 ? "#D97706" : "#0284C7"} stopOpacity="0.3" />
+                </linearGradient>
+              </defs>
+              {/* Upper streamline */}
+              <path
+                d="M 10,25 C 120,25 150,15 220,18 C 290,20 330,35 390,40"
+                fill="none"
+                stroke="url(#streamGrad)"
+                strokeWidth={currentSpeed > 80 ? "2.5" : "1.8"}
+                strokeDasharray="6 4"
+                className="animate-pulse"
+              />
+              {/* Mid roof contour streamline */}
+              <path
+                d="M 10,48 C 100,48 140,25 210,28 C 270,30 310,65 390,75"
+                fill="none"
+                stroke="url(#streamGrad)"
+                strokeWidth={currentSpeed > 80 ? "3" : "2"}
+                strokeDasharray="8 3"
+              />
+              {/* Hood / Windshield streamline */}
+              <path
+                d="M 10,72 C 90,72 130,55 190,56 C 250,58 290,82 390,88"
+                fill="none"
+                stroke="url(#streamGrad)"
+                strokeWidth="2"
+                strokeDasharray="7 4"
+              />
+              {/* Underbody ground effect streamline */}
+              <path
+                d="M 10,102 C 140,102 240,102 390,102"
+                fill="none"
+                stroke="#64748B"
+                strokeWidth="1.2"
+                strokeDasharray="4 4"
+              />
+              {/* Turbulent Vortex Rings at Rear for high speed */}
+              {currentSpeed > 75 && (
+                <g className="animate-spin origin-[330px_60px]">
+                  <circle cx="330" cy="55" r="9" fill="none" stroke="#E11D48" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.75" />
+                  <circle cx="355" cy="70" r="14" fill="none" stroke="#D97706" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.65" />
+                </g>
+              )}
+            </svg>
+
+            {/* Central Vehicle CAD Silhouette */}
+            <div className="relative z-10 scale-125">
+              <CarSilhouette profile={vehicleProfile} className="w-48 h-20 text-slate-800 drop-shadow-sm" />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#0B3D91]" />
-              <span className="text-[#0B3D91] font-bold text-[11px] tabular-nums">
-                Live: {Math.round(currentSpeed)} km/h
+          </div>
+
+          {/* Micro Telemetry Bar under Wind Tunnel */}
+          <div className="grid grid-cols-3 gap-2 mt-3 pt-2.5 border-t border-slate-200 text-center font-mono">
+            <div>
+              <span className="text-[9px] text-slate-500 uppercase block font-bold">DRAG COEFF</span>
+              <span className="text-xs font-bold text-slate-900">
+                {(profile.cd + (hasRoofRack ? 0.05 : 0)).toFixed(2)} Cd
               </span>
+            </div>
+            <div>
+              <span className="text-[9px] text-slate-500 uppercase block font-bold">FRONTAL AREA</span>
+              <span className="text-xs font-bold text-slate-900">{profile.frontalAreaM2} m²</span>
+            </div>
+            <div>
+              <span className="text-[9px] text-slate-500 uppercase block font-bold">AIR DENSITY</span>
+              <span className="text-xs font-bold text-slate-900">1.225 kg/m³</span>
             </div>
           </div>
         </div>
 
-        <div className="h-52 sm:h-64 w-full">
+        {/* Right: Parabolic Efficiency Chart (Cols 6-12) */}
+        <div className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 flex flex-col justify-between shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+            <div>
+              <span className="font-display text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 block">
+                Quadratic Aerodynamic Decay Curve (P_drag ∝ v³)
+              </span>
+              <p className="font-mono text-[10px] text-slate-500 mt-0.5">
+                Green band indicates optimal laminar window (55-65 km/h).
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#059669]" />
+                <span className="text-slate-600 text-[11px] font-semibold">Laminar Zone</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200">
+                <span className="h-2 w-2 rounded-full bg-[#0B3D91]" />
+                <span className="text-[#0B3D91] font-bold text-[11px] tabular-nums">
+                  Live: {Math.round(currentSpeed)} km/h
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-48 sm:h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={curveData} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
               <defs>
@@ -234,6 +354,7 @@ export default function AeroSweetSpotRadar({
           </ResponsiveContainer>
         </div>
       </div>
+    </div>
 
       {/* Physics Callout Strip & Interactive Modifiers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

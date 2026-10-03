@@ -2,6 +2,8 @@ import React from 'react';
 import { AnalogDial } from './ui/AnalogDial';
 import { WarningLight } from './ui/WarningLight';
 import { PulseDot, ThermometerIcon, WindIcon } from './icons';
+import { useFleet } from '../context/FleetContext';
+import { getEngineType } from '../config/engineTypes';
 
 export default function TelemetryPanel({
   telemetry = {},
@@ -9,6 +11,14 @@ export default function TelemetryPanel({
   speedLimit = 90,
   activeDTCs = []
 }) {
+  const fleet = useFleet ? useFleet() : null;
+  const activeVehicle = fleet?.activeVehicle;
+  const engineTypeId = activeVehicle?.engineTypeId || 'i4_petrol';
+  const engineType = getEngineType(engineTypeId);
+  const isBev = engineType?.category === 'BEV';
+  const isDiesel = engineType?.fuelType === 'diesel';
+  const isCng = engineType?.fuelType === 'cng';
+
   const tachMax = 7000;
   const majorStep = 1000;
   const minorStep = 200;
@@ -44,94 +54,127 @@ export default function TelemetryPanel({
   const dialSize = isSmallScreen ? 180 : 230;
 
   return (
-    <div className="relative rounded-2xl sm:rounded-3xl p-1 bg-gradient-to-b from-slate-300 via-slate-200 to-slate-400 shadow-[0_8px_30px_rgba(15,23,42,0.15)] w-full">
-      {/* Carbon-fiber Textured Dash Binnacle Behind Bezel (Permitted 10% dark hero) */}
-      <div className="carbon-cluster rounded-[18px] sm:rounded-[22px] p-3 sm:p-6 text-white border border-slate-800/90 shadow-cluster flex flex-col justify-between relative overflow-hidden">
+    <div className="relative rounded-2xl sm:rounded-3xl p-1 sm:p-2 titanium-binnacle w-full overflow-hidden select-none">
+      {/* Precision Chamfered Luminous Binnacle Housing */}
+      <div className="titanium-binnacle-inner rounded-[16px] sm:rounded-[22px] p-3 sm:p-6 text-slate-800 flex flex-col justify-between relative overflow-hidden">
         
-        {/* Subtle Ambient Reflected Light Across Top of Cluster Glass */}
-        <div className="pointer-events-none absolute -top-12 left-1/4 right-1/4 h-24 bg-gradient-to-b from-white/10 to-transparent rounded-full blur-md" />
+        {/* Subtle Ambient Light Bounce Across Top of Cluster */}
+        <div className="pointer-events-none absolute -top-12 left-1/4 right-1/4 h-24 bg-gradient-to-b from-white/80 to-transparent rounded-full blur-md" />
 
-        {/* Top Status Bar Inside Cluster */}
-        <div className="flex flex-wrap items-center justify-between border-b border-slate-800/80 pb-2.5 sm:pb-3 mb-3 sm:mb-4 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-xs uppercase font-bold tracking-[0.2em] text-slate-400">
-              INSTRUMENT BINNACLE
+        {/* Top Status Bar: Aerospace Telematics Flight Header */}
+        <div className="flex flex-wrap items-center justify-between border-b border-slate-200/90 pb-2.5 sm:pb-3 mb-3 sm:mb-4 gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#0B3D91]">
+              <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+              <span className="font-display text-[11px] uppercase font-bold tracking-[0.18em]">
+                AERO INSTRUMENT BINNACLE
+              </span>
+            </div>
+            <span className="hidden sm:inline-block font-mono text-[10px] text-slate-500 font-semibold">
+              300ms CAN-FD BUS
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Speed Limit Sign (Real European/International Circular Road Sign) */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">SIGN:</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#D7263D] bg-white text-slate-900 font-mono text-[11px] font-black shadow-sm">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Speed Limit Road Sign */}
+            <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-xs">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-slate-600 font-bold">LIMIT:</span>
+              <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#D7263D] bg-white text-slate-900 font-mono text-[10.5px] font-black">
                 {speedLimit}
               </div>
             </div>
 
             {/* Live Streaming Indicator */}
-            <div className="flex items-center gap-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 px-2.5 py-1 font-mono text-[10px] text-slate-300">
+            <div className="flex items-center gap-1.5 rounded-full bg-white border border-slate-200/90 px-3 py-1 font-mono text-[10.5px] text-slate-700 shadow-xs">
               <PulseDot color={isConnected ? 'emerald' : 'amber'} active={true} />
-              <span>{isConnected ? 'CAN-BUS SYNC' : 'OFFLINE'}</span>
+              <span className="font-bold">{isConnected ? 'CAN-BUS SYNC' : 'OFFLINE'}</span>
             </div>
           </div>
         </div>
 
-        {/* Dual Analog Dials & Center Warning Lamp Matrix */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center py-2">
+        {/* Dual Luminous Chronometer Dials & Central Avionics HUD */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center py-1">
           {/* Left: Speedometer Dial (Cols 1-5) */}
           <div className="md:col-span-5 flex flex-col items-center justify-center">
             <AnalogDial
               value={speed}
               min={0}
               max={140}
-              label="SPEED"
+              label="AIR / ROAD SPEED"
               unit="km/h"
               speedLimit={speedLimit}
               size={dialSize}
-              darkTheme={true}
+              darkTheme={false}
               bands={[
                 { from: 0, to: 55, color: '#0B3D91' },
-                { from: 55, to: 65, color: '#0F9D6B' }, // Sweet Spot
-                { from: 65, to: 80, color: '#1E88E5' },
-                { from: 80, to: 100, color: '#F2A900' },
-                { from: 100, to: 140, color: '#D7263D' }, // Redline
+                { from: 55, to: 65, color: '#059669' }, // Sweet Spot Emerald
+                { from: 65, to: 80, color: '#0284C7' },
+                { from: 80, to: 100, color: '#D97706' },
+                { from: 100, to: 140, color: '#E11D48' }, // Redline
               ]}
               secondaryReadout={
-                speed >= 55 && speed <= 65 ? 'SWEET SPOT' : isSpeedOverLimit ? 'SPEEDING' : null
+                speed >= 55 && speed <= 65 ? 'SWEET SPOT' : isSpeedOverLimit ? 'SPEEDING' : 'CRUISE'
               }
             />
           </div>
 
-          {/* Center: Gear Readout & Dashboard Warning Lights (Cols 6-7) */}
-          <div className="md:col-span-2 flex flex-col items-center justify-center py-2 space-y-2.5 sm:space-y-4">
-            {/* Gear Indicator Window */}
-            <div className="flex flex-col items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 px-4 py-1.5 sm:py-2 shadow-inner">
-              <span className="font-mono text-[8px] uppercase tracking-widest text-slate-400">GEAR</span>
-              <span className="font-mono text-xl sm:text-2xl font-black text-white tabular-nums tracking-wide">
-                {currentGear}
+          {/* Center: Central Avionics HUD Flight Box (Cols 6-7) */}
+          <div className="md:col-span-2 flex flex-col items-center justify-center py-2 space-y-3">
+            {/* Transmission & Drive Mode Inset */}
+            <div className="flex flex-col items-center justify-center rounded-xl bg-white border border-slate-300 px-4 py-2 shadow-xs w-full max-w-[140px]">
+              <span className="font-mono text-[8px] uppercase tracking-widest text-slate-600 font-bold">DRIVE MODE</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-mono text-2xl font-black text-slate-900 tabular-nums">
+                  {currentGear}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-blue-100 text-blue-700">
+                  AUTO
+                </span>
+              </div>
+            </div>
+
+            {/* Dynamic Lateral G-Force Bubble Visualizer */}
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 shadow-xs w-full max-w-[140px]">
+              <span className="font-mono text-[8px] uppercase tracking-wider text-slate-500 font-bold mb-1">
+                G-VECTOR BALL
+              </span>
+              <div className="relative w-14 h-14 rounded-full border border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
+                {/* Crosshairs */}
+                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-slate-300" />
+                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-slate-300" />
+                <div className="absolute w-8 h-8 rounded-full border border-dashed border-slate-300" />
+                {/* Dynamic Inertial Dot based on speed/turn simulation */}
+                <div 
+                  className="w-3.5 h-3.5 rounded-full bg-[#0B3D91] shadow-md border-2 border-white transition-all duration-300"
+                  style={{
+                    transform: `translate(${(Math.sin(speed / 10) * 12).toFixed(1)}px, ${(Math.cos(speed / 15) * 8).toFixed(1)}px)`
+                  }}
+                />
+              </div>
+              <span className="font-mono text-[9px] text-slate-700 font-bold mt-1">
+                {(0.02 + (speed / 140) * 0.28).toFixed(2)} G LAT
               </span>
             </div>
 
             {/* Warning Light Matrix (Illuminates when DTC or issue is triggered) */}
-            <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <WarningLight type="engine" active={isCheckEngine} color="amber" size={20} />
-              <WarningLight type="oil" active={false} color="red" size={20} />
-              <WarningLight type="battery" active={voltage < 12.8} color="red" size={20} />
-              <WarningLight type="coolant" active={isCoolantAlert} color="red" size={20} />
-              <WarningLight type="brake" active={isSpeedOverLimit} color="amber" size={20} />
-              <WarningLight type="abs" active={false} color="amber" size={20} />
+            <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <WarningLight type="engine" active={isCheckEngine} color="amber" size={19} />
+              <WarningLight type="oil" active={false} color="red" size={19} />
+              <WarningLight type="battery" active={voltage < 12.8} color="red" size={19} />
+              <WarningLight type="coolant" active={isCoolantAlert} color="red" size={19} />
+              <WarningLight type="brake" active={isSpeedOverLimit} color="amber" size={19} />
+              <WarningLight type="abs" active={false} color="amber" size={19} />
             </div>
 
-            {/* Status Flag */}
-            <span className={`font-mono text-[8px] sm:text-[9px] font-bold px-2 py-0.5 rounded border text-center ${
+            {/* Overall Powertrain Health Pill */}
+            <span className={`font-mono text-[9px] font-black px-2.5 py-1 rounded-md border text-center shadow-2xs ${
               isSpeedOverLimit
-                ? 'bg-[#D7263D]/20 text-[#D7263D] border-[#D7263D]/40'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
                 : isCheckEngine
-                ? 'bg-[#F2A900]/20 text-[#F2A900] border-[#F2A900]/40'
-                : 'bg-[#0F9D6B]/20 text-[#0F9D6B] border-[#0F9D6B]/40'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}>
-              {isSpeedOverLimit ? 'LIMIT EXCEEDED' : isCheckEngine ? 'CHECK ENGINE' : 'POWERTRAIN NOMINAL'}
+              {isSpeedOverLimit ? 'SPEED WARNING' : isCheckEngine ? 'FAULT DETECTED' : 'POWERTRAIN NOMINAL'}
             </span>
           </div>
 
@@ -146,44 +189,48 @@ export default function TelemetryPanel({
               majorStep={majorStep}
               minorStep={minorStep}
               size={dialSize}
-              darkTheme={true}
+              darkTheme={false}
               bands={tachBands}
               secondaryReadout={rpm > (tachMax * 0.78) ? 'HIGH LOAD' : 'NOMINAL'}
             />
           </div>
         </div>
 
-        {/* Lower Auxiliaries Bar Beneath Gauges */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Box 1: Thermal System */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
-            <div className="flex items-center gap-2">
-              <ThermometerIcon className={`w-4 h-4 ${isCoolantAlert ? 'text-[#D7263D]' : 'text-slate-400'}`} />
+        {/* Lower Auxiliaries Bar: Luminous Precision Sensor Pods */}
+        <div className="mt-4 pt-3 border-t border-slate-200/90 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Box 1: Thermal Subsystem */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-700">
+                <ThermometerIcon className={`w-4 h-4 ${isCoolantAlert ? 'text-[#D7263D]' : 'text-blue-600'}`} />
+              </div>
               <div>
-                <span className="font-mono text-[9px] text-slate-400 uppercase block">
+                <span className="font-mono text-[9.5px] text-slate-500 uppercase font-bold block">
                   {isBev ? 'MOTOR COOLING' : 'COOLANT TEMP'}
                 </span>
-                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                <span className="font-mono text-base font-bold text-slate-900 tabular-nums">
                   {coolant.toFixed(1)}°C
                 </span>
               </div>
             </div>
-            <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded ${
-              isCoolantAlert ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-emerald-400'
+            <span className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded ${
+              isCoolantAlert ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
             }`}>
               {isCoolantAlert ? 'OVERHEAT' : '85°C NORM'}
             </span>
           </div>
 
           {/* Box 2: Powertrain Specific (Airflow / Inverter / DPF / CNG) */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
-            <div className="flex items-center gap-2">
-              <WindIcon className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center justify-between p-3 rounded-xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-slate-100 border border-slate-200 text-blue-600">
+                <WindIcon className="w-4 h-4" />
+              </div>
               <div>
-                <span className="font-mono text-[9px] text-slate-400 uppercase block">
+                <span className="font-mono text-[9.5px] text-slate-500 uppercase font-bold block">
                   {isBev ? 'INVERTER TEMP' : isDiesel ? 'DPF SOOT LOAD' : isCng ? 'CNG TANK' : 'MASS AIR FLOW'}
                 </span>
-                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                <span className="font-mono text-base font-bold text-slate-900 tabular-nums">
                   {isBev
                     ? `${(telemetry.inverterTempC || 52).toFixed(1)}°C`
                     : isDiesel
@@ -194,25 +241,27 @@ export default function TelemetryPanel({
                 </span>
               </div>
             </div>
-            <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-blue-300">
+            <span className="font-mono text-[9px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
               {isBev ? 'SiC POWER' : isDiesel ? (telemetry.dpfRegenActive ? 'REGEN ON' : 'PASSIVE DPF') : isCng ? (telemetry.fuelMode === 'petrol_fallback' ? 'PETROL BACKUP' : 'CNG ACTIVE') : 'ECU SENSOR'}
             </span>
           </div>
 
           {/* Box 3: Energy / Battery Bus */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
-            <div className="flex items-center gap-2">
-              <PulseDot color="emerald" active={false} />
+          <div className="flex items-center justify-between p-3 rounded-xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-slate-100 border border-slate-200 text-emerald-600">
+                <PulseDot color="emerald" active={true} />
+              </div>
               <div>
-                <span className="font-mono text-[9px] text-slate-400 uppercase block">
+                <span className="font-mono text-[9.5px] text-slate-500 uppercase font-bold block">
                   {isBev ? 'TRACTION PACK' : '12V BATTERY BUS'}
                 </span>
-                <span className="font-mono text-sm font-bold text-white tabular-nums">
+                <span className="font-mono text-base font-bold text-slate-900 tabular-nums">
                   {isBev ? `${(telemetry.batterySocPct || 84.5).toFixed(1)}% SOC` : `${voltage.toFixed(2)} V`}
                 </span>
               </div>
             </div>
-            <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
+            <span className="font-mono text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
               {isBev ? `${telemetry.packVoltageV || 360}V NOM` : 'CHARGING'}
             </span>
           </div>
