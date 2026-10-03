@@ -40,6 +40,7 @@ export default function Sidebar({
     {
       group: 'DRIVE',
       items: [
+        { path: '/world', label: '3D Twin City (Drive)', Icon: DigitalTwinIcon, badge: '3D LIVE' },
         { path: '/driver-portal', label: 'Driver Cockpit HUD', Icon: DashboardIcon, badge: 'HUD' },
         { path: '/dashboard', label: 'Live Telemetry', Icon: DashboardIcon },
         { path: '/navigation', label: 'GPS Expressway', Icon: NavigationIcon },
@@ -81,7 +82,29 @@ export default function Sidebar({
   const renderNavContent = (isMobile = false) => (
     <>
       {/* Grouped Navigation */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+        {/* Quick 3D Digital World Launch Card */}
+        {(!isCollapsed || isMobile) && (
+          <NavLink
+            to="/world"
+            onClick={isMobile ? onCloseMobile : undefined}
+            className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white font-mono text-xs font-bold shadow-md hover:shadow-cyan-500/20 hover:scale-[1.02] transition-all border border-cyan-400/40 group"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-black tracking-wide text-cyan-300 flex items-center gap-1">
+                <span>ENTER 3D WORLD</span>
+                <span className="text-[9px] bg-cyan-400/20 px-1 py-0.2 rounded text-cyan-200">LIVE</span>
+              </div>
+              <div className="text-[9px] text-slate-400 truncate">Phone & Keyboard Driving</div>
+            </div>
+            <span className="text-cyan-400 text-sm group-hover:translate-x-0.5 transition-transform">→</span>
+          </NavLink>
+        )}
+
         {filteredNavGroups.map((grp) => (
           <div key={grp.group} className="space-y-1">
             {(!isCollapsed || isMobile) && (

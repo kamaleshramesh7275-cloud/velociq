@@ -10,6 +10,7 @@ import {
 } from './icons';
 import { Drawer, CommandPalette, SeverityBadge, StatusPill, WarningLight, RacingStripe } from './ui';
 import RoleSwitcher from './RoleSwitcher';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export default function CommandBar({
   isConnected,
@@ -84,6 +85,17 @@ export default function CommandBar({
               Ctrl+K
             </kbd>
           </button>
+
+          {/* Quick Direct Link to 3D Digital World */}
+          <button
+            type="button"
+            onClick={() => navigate('/world')}
+            className="hidden lg:flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-3 py-1.5 font-mono text-xs text-cyan-800 font-bold hover:bg-cyan-500/20 hover:border-cyan-500 transition shadow-xs"
+            title="Open 3D Digital Twin City"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+            <span>3D CITY WORLD</span>
+          </button>
         </div>
 
         {/* Status Indicators & Action Chips */}
@@ -128,6 +140,9 @@ export default function CommandBar({
             </svg>
             <span className="font-bold text-[11px]">AI AGENT</span>
           </div>
+
+          {/* Theme Color Switcher */}
+          <ThemeSwitcher />
 
           {/* Role Persona Switcher */}
           <RoleSwitcher compact />

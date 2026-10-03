@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, Outlet, useLocation } from 'react-router-dom';
 import { SimulationContext } from './context/SimulationContext';
 import { FleetProvider, useFleet } from './context/FleetContext';
+import { ThemeProvider } from './context/ThemeContext';
 import FleetManager from './pages/FleetManager';
 import Sidebar from './components/Sidebar';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -828,29 +829,31 @@ export default function App() {
   }, []);
 
   return (
-    <FleetProvider>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-        {/* Standalone phone controller — no auth, no sidebar */}
-        <Route path="/remote" element={<RemoteControllerPage />} />
-        <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
-          <Route path="/dashboard" element={<TelemetryPageWrapper />} />
-          <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
-          <Route path="/simulator" element={<SimulatorPageWrapper />} />
-          <Route path="/navigation" element={<NavigationPageWrapper />} />
-          <Route path="/analytics" element={<AnalyticsPageWrapper />} />
-          <Route path="/digital-twin" element={<LivingDigitalTwinPage />} />
-          <Route path="/maintenance" element={<MaintenancePageWrapper />} />
-          <Route path="/engine-twin" element={<EngineTwinPageWrapper />} />
-          <Route path="/fleet" element={<FleetManager />} />
-          <Route path="/safety" element={<DriverSafetyPage />} />
-          <Route path="/security" element={<SecurityPage />} />
-          <Route path="/world" element={<DigitalCityPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      </Routes>
-    </FleetProvider>
+    <ThemeProvider>
+      <FleetProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          {/* Standalone phone controller — no auth, no sidebar */}
+          <Route path="/remote" element={<RemoteControllerPage />} />
+          <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
+            <Route path="/dashboard" element={<TelemetryPageWrapper />} />
+            <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
+            <Route path="/simulator" element={<SimulatorPageWrapper />} />
+            <Route path="/navigation" element={<NavigationPageWrapper />} />
+            <Route path="/analytics" element={<AnalyticsPageWrapper />} />
+            <Route path="/digital-twin" element={<LivingDigitalTwinPage />} />
+            <Route path="/maintenance" element={<MaintenancePageWrapper />} />
+            <Route path="/engine-twin" element={<EngineTwinPageWrapper />} />
+            <Route path="/fleet" element={<FleetManager />} />
+            <Route path="/safety" element={<DriverSafetyPage />} />
+            <Route path="/security" element={<SecurityPage />} />
+            <Route path="/world" element={<DigitalCityPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </FleetProvider>
+    </ThemeProvider>
   );
 }
 

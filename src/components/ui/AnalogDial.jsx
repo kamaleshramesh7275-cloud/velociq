@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
  * Authentic Automotive Analog Dial with 270° Sweep Geometry
@@ -29,6 +30,7 @@ export function AnalogDial({
   ],
   secondaryReadout = null,
 }) {
+  const { theme } = useTheme();
   const clampedVal = Math.min(max, Math.max(min, value));
   const pct = (clampedVal - min) / (max - min);
 
@@ -180,6 +182,17 @@ export function AnalogDial({
           fill="none"
           stroke={darkTheme ? '#1E293B' : '#E2E8F0'}
           strokeWidth="1.5"
+        />
+
+        {/* Dynamic Automotive Theme Accent Glow */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={size / 2 - 6.5}
+          fill="none"
+          stroke={theme?.primary || '#00D4FF'}
+          strokeWidth="1"
+          strokeOpacity="0.45"
         />
 
         {/* Inner Ceramic Dial Face */}
