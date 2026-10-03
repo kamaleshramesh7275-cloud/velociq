@@ -90,10 +90,7 @@ export function AuthProvider({ children }) {
 
   const activeRoleData = ROLES[currentRole] || ROLES.admin;
 
-  const hasPermission = (routePath) => {
-    if (currentRole === 'admin') return true;
-    return activeRoleData.allowedRoutes.some(r => routePath.startsWith(r));
-  };
+  const hasPermission = () => true;
 
   const setRole = (roleKey) => {
     if (ROLES[roleKey]) {

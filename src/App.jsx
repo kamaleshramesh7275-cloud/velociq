@@ -751,28 +751,12 @@ function DriverPortalPageWrapper() {
 }
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') !== 'false');
-
-  const handleLogin = () => {
-    sessionStorage.setItem('velociq_logged_in', 'true');
-    setIsAuthenticated(true);
-  };
-
-  useEffect(() => {
-    const syncAuthState = () => {
-      setIsAuthenticated(sessionStorage.getItem('velociq_logged_in') !== 'false');
-    };
-
-    window.addEventListener('storage', syncAuthState);
-    return () => window.removeEventListener('storage', syncAuthState);
-  }, []);
-
   return (
     <FleetProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-        <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<SimulationWrapper />}>
           <Route path="/dashboard" element={<TelemetryPageWrapper />} />
           <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
           <Route path="/simulator" element={<SimulatorPageWrapper />} />

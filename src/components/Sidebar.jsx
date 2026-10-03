@@ -72,10 +72,7 @@ export default function Sidebar({
 
   const currentProfile = activeVehicle?.profile || vehicleProfile || 'sedan';
 
-  const filteredNavGroups = navGroups.map(grp => ({
-    ...grp,
-    items: grp.items.filter(item => hasPermission(item.path))
-  })).filter(grp => grp.items.length > 0);
+  const filteredNavGroups = navGroups;
 
   const renderNavContent = (isMobile = false) => (
     <>
