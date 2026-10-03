@@ -2,14 +2,22 @@
  * engineTwinPhysics.js
  * 
  * Multi-Physics Cyber-Physical Simulation Engine for the Automotive Engine Digital Twin.
+ * Extended with full Multi-Engine-Type architecture supporting:
+ * - i4_petrol (Default baseline, zero regression)
+ * - i3_turbo, v6_petrol, v8_petrol, boxer4, i4_diesel, single_4s, i4_cng, hybrid_atkinson, bev_pmsm
+ * 
  * Computes:
- * 1. 4-Cylinder Combustion & Power Balance (Cyl 1, 2, 3, 4 firing sequence)
- * 2. Lumped-Parameter Thermal Network (Head, Block, Oil, Coolant, Exhaust/Turbo)
+ * 1. Engine-Specific Combustion & Power Balance (1 to 8 cylinders, opposed, or electric drive)
+ * 2. Lumped-Parameter Thermal Network (Head, Block, Oil, Coolant, Exhaust/Turbo/Inverter/Battery)
  * 3. Lubrication & Tribology (Oil Pressure, Viscosity, Bearing Friction)
  * 4. Air Induction & Turbo Boost Dynamics (MAP, MAF, Lambda)
  * 5. Mechanical Wear & Remaining Lifespan
  * 6. Virtual Dyno Performance Curves (Torque & Horsepower)
  */
+
+import { getEngineType } from '../config/engineTypes.js';
+import { stepEngineModel } from './engineModels/index.js';
+import { getEngineFaultCatalog, buildEngineRiskMap } from './engineFaultCatalogs.js';
 
 export const VISUAL_MODES = {
   CAD: 'CAD',
@@ -58,7 +66,33 @@ export const TWIN_FAULT_SCENARIOS = {
   }
 };
 
-export function buildComponentRiskMap({ diagnostics = {}, thermal = {}, wear = {}, telemetry = {}, activeScenario = 'NOMINAL' } = {}) {
+/**
+ * Returns the fault scenarios available for a specific engine type.
+ */
+export function getScenariosForEngine(engineTypeId = 'i4_petrol') {
+  return getEngineFaultCatalog(engineTypeId);
+}
+
+export function buildComponentRiskMap({
+  diagnostics = {},
+  thermal = {},
+  wear = {},
+  telemetry = {},
+  activeScenario = 'NOMINAL',
+  engineTypeId = 'i4_petrol'
+} = {}) {
+  // If non-default engine, use engine-specific risk mapper
+  if (engineTypeId && engineTypeId !== 'i4_petrol') {
+    return buildEngineRiskMap({
+      engineId: engineTypeId,
+      activeScenario,
+      diagnostics,
+      thermal,
+      telemetry
+    });
+  }
+
+  // Exact baseline behavior for i4_petrol (Zero Regression)
   const map = {};
   const priority = { healthy: 0, watch: 1, damaged: 2, critical: 3 };
 
@@ -153,7 +187,7 @@ export function buildComponentRiskMap({ diagnostics = {}, thermal = {}, wear = {
 }
 
 /**
- * Multi-physics simulation step
+ * Multi-physics simulation step (Parametric by Engine Type)
  */
 export function stepEngineDigitalTwin({
   rpm = 1200,
@@ -162,15 +196,58 @@ export function stepEngineDigitalTwin({
   time = 0,
   driverScore = 95,
   prevThermalState = null,
-  isDynoRunning = false
+  isDynoRunning = false,
+  engineTypeId = 'i4_petrol'
 }) {
+  const engineType = getEngineType(engineTypeId);
+
+  // If another engine type is requested, dispatch to modular family model
+  if (engineTypeId && engineTypeId !== 'i4_petrol') {
+    const res = stepEngineModel(engineType, { thermal: prevThermalState }, {
+      rpm,
+      throttlePct,
+      time,
+      driverScore,
+      activeScenario
+    });
+
+    const catalog = getEngineFaultCatalog(engineTypeId);
+    const scenarioObj = catalog[activeScenario] || catalog.NOMINAL;
+    const activeDTCs = [...(scenarioObj.dtc || [])];
+
+    // Compute mechanical wear rates tailored to engine type
+    const aggressiveDrivingWearMultiplier = Math.max(1.0, (100 - driverScore) / 25);
+    const wear = {
+      pistonRings: Number((6.8 + (rpm > 5000 ? 0.05 : 0.01) * aggressiveDrivingWearMultiplier).toFixed(2)),
+      crankBearings: Number((4.2 + (activeScenario.includes('STARVATION') ? 18.5 : 0.01)).toFixed(2)),
+      valvetrain: Number((5.1 + (res.thermal.headTemp > 105 ? 0.08 : 0.01)).toFixed(2)),
+      turboBearings: Number((7.4 + ((res.thermal.turboTemp || 400) > 650 ? 0.12 : 0.02)).toFixed(2))
+    };
+
+    const healthIndex = Math.max(20, Math.min(100, 100 - (activeDTCs.length * 18) - (res.thermal.coolantTemp > 100 ? 15 : 0)));
+
+    return {
+      telemetry: res.telemetry,
+      thermal: res.thermal,
+      cylinderBalance: res.cylinderBalance,
+      wear,
+      diagnostics: {
+        activeScenario,
+        scenarioTitle: scenarioObj.title,
+        scenarioDesc: scenarioObj.description,
+        activeDTCs,
+        healthIndex
+      }
+    };
+  }
+
+  // --- EXACT NUMERICAL BASELINE PRESERVED FOR i4_petrol (Zero Regression) ---
   const normThrottle = Math.max(0, Math.min(100, throttlePct)) / 100;
   const normRpm = Math.max(700, Math.min(7200, rpm));
   const dt = 0.05; // 50ms timestep
 
   // 1. Combustion & 4-Cylinder Power Balance
-  // Firing order: 1 - 3 - 4 - 2
-  const firingCycle = (time * (normRpm / 60) * 2) % 4; // Current cylinder firing
+  const firingCycle = (time * (normRpm / 60) * 2) % 4;
   const activeFiringCylinder = Math.floor(firingCycle) + 1;
 
   let cyl1Efficiency = 0.98 + (Math.random() - 0.5) * 0.03;
@@ -182,10 +259,10 @@ export function stepEngineDigitalTwin({
   let knockDetected = false;
 
   if (activeScenario === 'CYL_3_MISFIRE') {
-    cyl3Efficiency = 0.12 + (Math.random() * 0.08); // Severe loss of power
+    cyl3Efficiency = 0.12 + (Math.random() * 0.08);
     misfireDetected = true;
   } else if (activeScenario === 'TURBO_OVERBOOST') {
-    knockDetected = normThrottle > 0.6; // Detonation under excessive boost
+    knockDetected = normThrottle > 0.6;
   }
 
   const cylinderBalance = [
@@ -196,15 +273,14 @@ export function stepEngineDigitalTwin({
   ];
 
   // 2. Air Path & Turbo Boost Induction
-  let manifoldPressureKPa = 32.0 + (normThrottle * 70.0); // 32 kPa idle vacuum to 102 kPa N/A WOT
+  let manifoldPressureKPa = 32.0 + (normThrottle * 70.0);
   let turboBoostPsi = 0.0;
-  let mafFlowRate = 3.2 + (normRpm / 1000) * 4.5 + normThrottle * 50.0; // g/s
+  let mafFlowRate = 3.2 + (normRpm / 1000) * 4.5 + normThrottle * 50.0;
 
   if (normRpm > 1800 && normThrottle > 0.25) {
-    // Turbo spool dynamics
     turboBoostPsi = Math.min(16.5, (normRpm / 6000) * 16.0 * normThrottle * 1.3);
     if (activeScenario === 'TURBO_OVERBOOST') {
-      turboBoostPsi = Math.min(27.5, turboBoostPsi * 1.75); // Overboost runaway
+      turboBoostPsi = Math.min(27.5, turboBoostPsi * 1.75);
     }
     manifoldPressureKPa += (turboBoostPsi * 6.894);
   }
@@ -212,13 +288,13 @@ export function stepEngineDigitalTwin({
   let lambda = 1.00;
   let stftPct = 0.0;
   if (activeScenario === 'INTAKE_VACUUM_LEAK') {
-    manifoldPressureKPa = Math.min(101.3, manifoldPressureKPa + 22.0); // Vacuum collapse
-    mafFlowRate = Math.max(2.0, mafFlowRate - 3.5); // Air enters unmetered
-    lambda = 1.18; // Lean
-    stftPct = 24.5; // Max positive fuel trim
+    manifoldPressureKPa = Math.min(101.3, manifoldPressureKPa + 22.0);
+    mafFlowRate = Math.max(2.0, mafFlowRate - 3.5);
+    lambda = 1.18;
+    stftPct = 24.5;
   }
 
-  // 3. Thermal Network (Differential State Equations)
+  // 3. Thermal Network
   const prev = prevThermalState || {
     headTemp: 92.0,
     blockTemp: 88.0,
@@ -228,7 +304,6 @@ export function stepEngineDigitalTwin({
     turboTemp: 380.0
   };
 
-  // Heat generation targets based on engine load
   const loadFactor = (normRpm / 6000) * 0.6 + normThrottle * 0.4;
   let targetExhaust = 340 + loadFactor * 460;
   let targetHead = 88 + loadFactor * 26;
@@ -238,19 +313,18 @@ export function stepEngineDigitalTwin({
   let targetTurbo = 300 + loadFactor * 380;
 
   if (activeScenario === 'THERMOSTAT_STUCK') {
-    targetCoolant += 35.0; // Thermostat fails to open radiator flow
+    targetCoolant += 35.0;
     targetHead += 32.0;
     targetBlock += 24.0;
     targetOil += 22.0;
   } else if (activeScenario === 'CYL_3_MISFIRE') {
-    targetExhaust += 110.0; // Unburnt fuel burns inside catalytic converter/exhaust!
+    targetExhaust += 110.0;
     targetTurbo += 90.0;
   } else if (activeScenario === 'OIL_STARVATION') {
-    targetBlock += 18.0; // Severe friction heat
+    targetBlock += 18.0;
     targetOil += 35.0;
   }
 
-  // Smooth thermal lag integration (engines have high thermal inertia)
   const headTemp = prev.headTemp + (targetHead - prev.headTemp) * (dt * 0.4);
   const blockTemp = prev.blockTemp + (targetBlock - prev.blockTemp) * (dt * 0.3);
   const coolantTemp = prev.coolantTemp + (targetCoolant - prev.coolantTemp) * (dt * 0.35);
@@ -258,27 +332,24 @@ export function stepEngineDigitalTwin({
   const exhaustTemp = prev.exhaustTemp + (targetExhaust - prev.exhaustTemp) * (dt * 0.8);
   const turboTemp = prev.turboTemp + (targetTurbo - prev.turboTemp) * (dt * 0.6);
 
-  // Update cylinder temps based on head temp
   cylinderBalance[0].tempC = Number((headTemp + 1.2).toFixed(1));
   cylinderBalance[1].tempC = Number((headTemp - 0.4).toFixed(1));
   cylinderBalance[2].tempC = Number((headTemp + (activeScenario === 'CYL_3_MISFIRE' ? -8.0 : 0.8)).toFixed(1));
   cylinderBalance[3].tempC = Number((headTemp + 1.5).toFixed(1));
 
   // 4. Lubrication & Tribology
-  let baseOilPressurePsi = 22.0 + (normRpm / 6000) * 44.0; // 22 psi idle to 66 psi high rpm
+  let baseOilPressurePsi = 22.0 + (normRpm / 6000) * 44.0;
   if (activeScenario === 'OIL_STARVATION') {
-    baseOilPressurePsi = Math.max(9.5, 12.0 + (normRpm / 6000) * 4.0); // Severe pressure collapse
+    baseOilPressurePsi = Math.max(9.5, 12.0 + (normRpm / 6000) * 4.0);
   }
 
-  // Oil Viscosity & Bearing Friction Film
   const thermalDegradation = Math.max(0, (oilTemp - 100) * 0.015);
   const oilViscosityCentistokes = Math.max(6.2, 14.5 - thermalDegradation);
   const bearingFrictionCoeff = activeScenario === 'OIL_STARVATION' ? 0.085 : (0.008 + (1 / oilViscosityCentistokes) * 0.04);
   const hydrodynamicFilmThicknessMicrons = activeScenario === 'OIL_STARVATION' ? 0.8 : Number((3.2 * (baseOilPressurePsi / 40)).toFixed(2));
 
-  // 5. Mechanical Wear & Life Expectancy
+  // 5. Mechanical Wear
   const aggressiveDrivingWearMultiplier = Math.max(1.0, (100 - driverScore) / 25);
-  const baseLifespanHours = 4500;
   const currentWearPct = {
     pistonRings: Number((6.8 + (normRpm > 5000 ? 0.05 : 0.01) * aggressiveDrivingWearMultiplier).toFixed(2)),
     crankBearings: Number((4.2 + (activeScenario === 'OIL_STARVATION' ? 18.5 : 0.01)).toFixed(2)),
@@ -287,7 +358,6 @@ export function stepEngineDigitalTwin({
   };
 
   // 6. Virtual Dyno Output (Torque & Horsepower)
-  // 2.0L Turbocharged Inline-4 profile
   const rpmPeakTorque = 3200;
   const maxTorqueNm = 360;
   const rpmDelta = Math.abs(normRpm - rpmPeakTorque);
@@ -295,11 +365,11 @@ export function stepEngineDigitalTwin({
   availableTorque = Math.max(15, availableTorque * (cyl1Efficiency + cyl2Efficiency + cyl3Efficiency + cyl4Efficiency) / 4);
 
   if (activeScenario === 'INTAKE_VACUUM_LEAK') availableTorque *= 0.82;
-  if (activeScenario === 'TURBO_OVERBOOST' && knockDetected) availableTorque *= 0.75; // Knock retard
+  if (activeScenario === 'TURBO_OVERBOOST' && knockDetected) availableTorque *= 0.75;
 
   const horsepowerHp = Math.max(5, (availableTorque * normRpm) / 7127 * 1.341);
 
-  // 7. Active Trouble Codes & Diagnostics
+  // 7. Diagnostics
   const scenarioObj = TWIN_FAULT_SCENARIOS[activeScenario] || TWIN_FAULT_SCENARIOS.NOMINAL;
   const activeDTCs = [...scenarioObj.dtc];
   if (coolantTemp > 108 && !activeDTCs.includes('P0217')) activeDTCs.push('P0217');
@@ -310,6 +380,7 @@ export function stepEngineDigitalTwin({
       rpm: Math.round(normRpm),
       throttlePct: Math.round(normThrottle * 100),
       horsepower: Number(horsepowerHp.toFixed(1)),
+      powerKw: Number(((availableTorque * normRpm * Math.PI * 2) / 60000).toFixed(1)),
       torqueNm: Number(availableTorque.toFixed(1)),
       manifoldPressureKPa: Number(manifoldPressureKPa.toFixed(1)),
       turboBoostPsi: Number(turboBoostPsi.toFixed(1)),
@@ -345,23 +416,30 @@ export function stepEngineDigitalTwin({
 }
 
 /**
- * Pre-computes full Virtual Dyno Sweep curve (1000 RPM to 6800 RPM)
+ * Pre-computes full Virtual Dyno Sweep curve parameterized by engine type
  */
-export function generateDynoPowerCurve(scenario = 'NOMINAL') {
+export function generateDynoPowerCurve(scenario = 'NOMINAL', engineTypeId = 'i4_petrol') {
+  const engineType = getEngineType(engineTypeId);
+  const minRpm = engineTypeId === 'bev_pmsm' ? 500 : Math.max(800, engineType.idleRpm);
+  const maxRpm = engineType.redlineRpm || 6800;
+  const stepRpm = engineTypeId === 'bev_pmsm' ? 500 : 200;
+
   const points = [];
-  for (let r = 1000; r <= 6800; r += 200) {
+  for (let r = minRpm; r <= maxRpm; r += stepRpm) {
     const step = stepEngineDigitalTwin({
       rpm: r,
-      throttlePct: 100, // WOT
+      throttlePct: 100,
       activeScenario: scenario,
       time: r / 1000,
-      driverScore: 100
+      driverScore: 100,
+      engineTypeId
     });
     points.push({
       rpm: r,
       torque: step.telemetry.torqueNm,
       horsepower: step.telemetry.horsepower,
-      boost: step.telemetry.turboBoostPsi
+      boost: step.telemetry.turboBoostPsi || 0,
+      powerKw: step.telemetry.powerKw || Math.round(step.telemetry.horsepower * 0.7457)
     });
   }
   return points;

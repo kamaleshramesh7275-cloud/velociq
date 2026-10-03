@@ -1,0 +1,8 @@
+{
+  "appId": "com.velociq.app",
+  "appName": "VelocIQ",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

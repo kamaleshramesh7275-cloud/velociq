@@ -1,9 +1,16 @@
 import React from 'react';
 import MaintenanceTracker from '../components/MaintenanceTracker';
 import CostComparison from '../components/CostComparison';
+import DVIRHistoryTable from '../components/dvir/DVIRHistoryTable';
 import { SectionLabel } from '../components/ui';
 
-export default function MaintenancePage({ telemetry, handleServicePart, modelState, aiMechanicEnabled, setAiMechanicEnabled }) {
+export default function MaintenancePage({ 
+  telemetry, 
+  handleServicePart, 
+  modelState, 
+  aiMechanicEnabled, 
+  setAiMechanicEnabled
+}) {
   return (
     <div className="p-6 md:p-8 flex-1 overflow-auto bg-[#F4F6F9] text-[#0F172A]">
       <div className="mx-auto max-w-7xl flex flex-col gap-6">
@@ -40,6 +47,7 @@ export default function MaintenancePage({ telemetry, handleServicePart, modelSta
             setAiMechanicEnabled={setAiMechanicEnabled}
           />
           <CostComparison />
+          <DVIRHistoryTable />
         </div>
 
       </div>

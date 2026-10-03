@@ -5,20 +5,21 @@ import * as THREE from 'three';
  * EngineTwinCanvas.jsx
  * 
  * VelocIQ Definitive CAD Automotive Engine Digital Twin.
- * Precision-engineered to 1:1 parity with the reference industrial CAD render:
+ * Precision-engineered 2.0L I-4 DOHC 16-Valve Twin-Cam Turbocharged Powertrain:
  * 
+ * - Single Unified Engine Digital Twin architecture
  * - Full Pause / Resume synchronization with simulation clock freeze
  * - Unified responsive non-overlapping toolbar layout across all screen resolutions
  * - Solid CAD Cutaway Architecture with ductile cast-iron cylinder sleeve liners
  * - Front horizontal rigid coolant distribution hard-line spanning across block
- * - High-pressure common fuel rail with 4 electronic multi-hole direct injectors
+ * - High-pressure common fuel rail with electronic multi-hole direct injectors
  * - 4-into-1 tuned organic mandrel-swept exhaust runners & scalloped merge collector
- * - Close-coupled catalytic converter with dual O2 sensors & 3-bolt downpipe flange
+ * - Close-coupled catalytic converter canister with dual O2 sensors & 3-bolt downpipe flange
  * - Thermostat housing neck with diamond flange, hose barb, jubilee clamp & ECT sensor
- * - DOHC valvetrain with 4 coil-on-plug units, wiring conduit, 14 perimeter cap screws & PCV pipe
+ * - DOHC valvetrain with coil-on-plug units, wiring conduit, perimeter cap screws & PCV pipe
  * - Forward-repositioned accessory serpentine drive with vented alternator & active Poly-V belt
  * - Structural cast block waffle stiffening grid, spin-on oil filter, knock sensor & dipstick
- * - Right-side transverse transaxle with 10 bellhousing bolts, differential cup, oil cooler & orange solenoid plug
+ * - Right-side transverse transaxle with differential cup & orange solenoid plug
  * - Dual CAD Studio Lighting: "Keyshot Pure CAD White" vs "Executive Cyber Dark"
  * - Procedural Web Audio Engine Acoustic Synthesizer revving dynamically with RPM
  */
@@ -82,6 +83,106 @@ export default function EngineTwinCanvas({
 
   const materialsRef = useRef({});
   const componentMeshesRef = useRef({});
+
+  const initMaterials = () => {
+    const mats = materialsRef.current;
+    if (mats.castAluminum) return mats;
+
+    mats.casingAluminum = new THREE.MeshStandardMaterial({
+      color: 0xcdd2da,
+      roughness: 0.35,
+      metalness: 0.58,
+      side: THREE.DoubleSide
+    });
+
+    mats.casingBlack = new THREE.MeshStandardMaterial({
+      color: 0x1a1d22,
+      roughness: 0.72,
+      metalness: 0.1,
+      side: THREE.DoubleSide
+    });
+
+    mats.castIronLiner = new THREE.MeshStandardMaterial({
+      color: 0x334155,
+      roughness: 0.28,
+      metalness: 0.65,
+      side: THREE.DoubleSide
+    });
+
+    mats.castAluminum = new THREE.MeshStandardMaterial({
+      color: 0xcdd2da,
+      roughness: 0.35,
+      metalness: 0.58
+    });
+
+    mats.polishedAluminum = new THREE.MeshStandardMaterial({
+      color: 0xe6ebf2,
+      roughness: 0.22,
+      metalness: 0.75
+    });
+
+    mats.exhaustStainless = new THREE.MeshStandardMaterial({
+      color: 0xd0d5de,
+      roughness: 0.24,
+      metalness: 0.82
+    });
+
+    mats.matteBlack = new THREE.MeshStandardMaterial({
+      color: 0x1a1d22,
+      roughness: 0.72,
+      metalness: 0.1
+    });
+
+    mats.rubberBelt = new THREE.MeshStandardMaterial({
+      color: 0x111215,
+      roughness: 0.92,
+      metalness: 0.02
+    });
+
+    mats.chromeHardware = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.12,
+      metalness: 0.95
+    });
+
+    mats.connectorOrange = new THREE.MeshStandardMaterial({
+      color: 0xff5722,
+      roughness: 0.35,
+      metalness: 0.15
+    });
+
+    mats.sensorBrass = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      roughness: 0.25,
+      metalness: 0.85
+    });
+
+    mats.copperWire = new THREE.MeshStandardMaterial({
+      color: 0xb87333,
+      roughness: 0.3,
+      metalness: 0.85
+    });
+
+    mats.dipstickYellow = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b,
+      roughness: 0.38,
+      metalness: 0.1
+    });
+
+    mats.weldSeam = new THREE.MeshStandardMaterial({
+      color: 0xb4bcc8,
+      roughness: 0.3,
+      metalness: 0.7
+    });
+
+    mats.fuelRailStainless = new THREE.MeshStandardMaterial({
+      color: 0xf1f5f9,
+      roughness: 0.18,
+      metalness: 0.88
+    });
+
+    return mats;
+  };
 
   const registerComponentMeshes = (componentId, mesh) => {
     if (!componentId || !mesh) return;
@@ -228,7 +329,7 @@ export default function EngineTwinCanvas({
     // 4. Studio Lighting Rig
     setupStudioLighting(scene, studioTheme);
 
-    // 5. Construct Hyper-Detailed Engine Assembly
+    // 5. Construct Engine Assembly
     const engineRoot = new THREE.Group();
     scene.add(engineRoot);
     engineRootRef.current = engineRoot;
@@ -258,7 +359,7 @@ export default function EngineTwinCanvas({
       }
 
       // Rotate pulleys with belt drive (Freezes on pause)
-      if (groupsRef.current.pulleys.length > 0) {
+      if (groupsRef.current.pulleys?.length > 0) {
         const rotSpeed = simTime * ((telemetryRef.current?.rpm || 1200) / 180);
         groupsRef.current.pulleys.forEach((p, i) => {
           p.rotation.x = rotSpeed * (i % 2 === 0 ? 1 : 1.35);
@@ -266,7 +367,7 @@ export default function EngineTwinCanvas({
       }
 
       // Internal pistons reciprocating in authentic 1-3-4-2 order (Freezes on pause)
-      if (groupsRef.current.internalPistons.length === 4) {
+      if (groupsRef.current.internalPistons?.length === 4) {
         const crankAngle = simTime * ((telemetryRef.current?.rpm || 1200) / 60) * Math.PI * 2;
         groupsRef.current.internalPistons.forEach((piston, idx) => {
           // Cyl 1 & 4 at TDC when 2 & 3 at BDC
@@ -276,7 +377,7 @@ export default function EngineTwinCanvas({
       }
 
       // Cylinder combustion flash lights (Freezes on pause)
-      if (groupsRef.current.cylinderFlashes.length > 0) {
+      if (groupsRef.current.cylinderFlashes?.length > 0) {
         const activeCyl = telemetryRef.current?.activeFiringCylinder || 1;
         groupsRef.current.cylinderFlashes.forEach((light, idx) => {
           const isFiring = (idx + 1) === activeCyl;
@@ -415,97 +516,7 @@ export default function EngineTwinCanvas({
    * Constructs the Hyper-Detailed Precision Engine Assembly matching reference photo
    */
   const buildHyperDetailedEngineAssembly = (root) => {
-    const mats = materialsRef.current;
-
-    // Dedicated Outer Casing Materials (can be clipped cleanly in Cutaway mode)
-    mats.casingAluminum = new THREE.MeshStandardMaterial({
-      color: 0xcdd2da,
-      roughness: 0.35,
-      metalness: 0.58,
-      side: THREE.DoubleSide
-    });
-
-    mats.casingBlack = new THREE.MeshStandardMaterial({
-      color: 0x1a1d22,
-      roughness: 0.72,
-      metalness: 0.1,
-      side: THREE.DoubleSide
-    });
-
-    // Solid internal ductile cast iron for cylinder sleeve liners
-    mats.castIronLiner = new THREE.MeshStandardMaterial({
-      color: 0x334155,
-      roughness: 0.28,
-      metalness: 0.65,
-      side: THREE.DoubleSide
-    });
-
-    // Component Materials (Remain 100% solid & intact during cutaway)
-    mats.castAluminum = new THREE.MeshStandardMaterial({
-      color: 0xcdd2da,
-      roughness: 0.35,
-      metalness: 0.58
-    });
-
-    mats.polishedAluminum = new THREE.MeshStandardMaterial({
-      color: 0xe6ebf2,
-      roughness: 0.22,
-      metalness: 0.75
-    });
-
-    mats.exhaustStainless = new THREE.MeshStandardMaterial({
-      color: 0xd0d5de,
-      roughness: 0.24,
-      metalness: 0.82
-    });
-
-    mats.matteBlack = new THREE.MeshStandardMaterial({
-      color: 0x1a1d22,
-      roughness: 0.72,
-      metalness: 0.1
-    });
-
-    mats.rubberBelt = new THREE.MeshStandardMaterial({
-      color: 0x111215,
-      roughness: 0.92,
-      metalness: 0.02
-    });
-
-    mats.chromeHardware = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      roughness: 0.12,
-      metalness: 0.95
-    });
-
-    mats.connectorOrange = new THREE.MeshStandardMaterial({
-      color: 0xff5722,
-      roughness: 0.35,
-      metalness: 0.15
-    });
-
-    mats.sensorBrass = new THREE.MeshStandardMaterial({
-      color: 0xd4af37,
-      roughness: 0.25,
-      metalness: 0.85
-    });
-
-    mats.dipstickYellow = new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      roughness: 0.38,
-      metalness: 0.1
-    });
-
-    mats.weldSeam = new THREE.MeshStandardMaterial({
-      color: 0xb4bcc8,
-      roughness: 0.3,
-      metalness: 0.7
-    });
-
-    mats.fuelRailStainless = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9,
-      roughness: 0.18,
-      metalness: 0.88
-    });
+    const mats = initMaterials();
 
     // Helper: Create rounded beveled rectangular box shape
     const createBeveledBox = (w, h, d, radius = 0.06, bevel = 0.04) => {
@@ -1345,7 +1356,7 @@ export default function EngineTwinCanvas({
   /**
    * Updates Material Colors based on Visual Mode & Multi-Physics Thermal State
    */
-  const updateVisualModeColors = () => {
+  function updateVisualModeColors() {
     const mats = materialsRef.current;
     if (!mats.castAluminum) return;
 

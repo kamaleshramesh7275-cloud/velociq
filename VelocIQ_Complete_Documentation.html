@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VelocIQ - Complete Technical & Feature Documentation</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #0f172a;
+      --sidebar-bg: #0b1120;
+      --border: #1e293b;
+      --border-focus: #38bdf8;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    /* Top Command Header */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(11, 17, 32, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+
+    .brand-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: #1e293b;
+      border-color: #475569;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px;
+      gap: 40px;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 80px;
+      height: calc(100vh - 110px);
+      overflow-y: auto;
+      background: var(--sidebar-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .sidebar-heading {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .sidebar-nav {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .sidebar-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .sidebar-link.active {
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      font-weight: 600;
+      border-left: 2px solid var(--accent-cyan);
+    }
+
+    /* Content Area */
+    .content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .doc-hero {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.6));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .doc-hero::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .doc-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .doc-subtitle {
+      font-size: 18px;
+      color: var(--accent-cyan);
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 48px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: #cbd5e1;
+    }
+
+    ul, ol {
+      margin-bottom: 20px;
+      padding-left: 24px;
+      color: #cbd5e1;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Math Formula Block */
+    .math-block {
+      background: #020617;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-left: 4px solid var(--accent-cyan);
+      border-radius: 8px;
+      padding: 18px 24px;
+      margin: 16px 0;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: #e2e8f0;
+      overflow-x: auto;
+    }
+
+    .math-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #0b1120;
+      color: #fff;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Code Blocks */
+    pre {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    /* Grid Columns */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .stat-box {
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .stat-desc {
+      font-size: 12px;
+      color: var(--accent-cyan);
+      margin-top: 4px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 11pt;
+      }
+
+      .top-header, .sidebar, .actions {
+        display: none !important;
+      }
+
+      .layout {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .content {
+        width: 100% !important;
+      }
+
+      .doc-hero {
+        background: #f8fafc !important;
+        color: #000 !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-after: avoid;
+      }
+
+      .doc-title {
+        color: #0f172a !important;
+      }
+
+      .doc-subtitle {
+        color: #0284c7 !important;
+      }
+
+      h2 {
+        color: #0f172a !important;
+        border-bottom: 2px solid #0f172a !important;
+        page-break-after: avoid;
+      }
+
+      h3 {
+        color: #1e293b !important;
+        page-break-after: avoid;
+      }
+
+      .card, table, pre, .math-block {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #000 !important;
+        page-break-inside: avoid;
+      }
+
+      th {
+        background: #e2e8f0 !important;
+        color: #000 !important;
+      }
+
+      code {
+        background: #f1f5f9 !important;
+        color: #0369a1 !important;
+      }
+
+      pre {
+        color: #0f172a !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="top-header">
+    <div class="brand">
+      <div class="brand-logo">V</div>
+      <span class="brand-title">VELOCIQ</span>
+      <span class="brand-tag">SYSTEM SPECIFICATION v1.0.0</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="downloadMarkdown()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Markdown
+      </button>
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Print / Save to PDF
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-heading">Documentation Sections</div>
+      <ul class="sidebar-nav">
+        <li><a href="#summary" class="sidebar-link active">1. Executive Summary</a></li>
+        <li><a href="#techstack" class="sidebar-link">2. Technology Stack</a></li>
+        <li><a href="#physics" class="sidebar-link">3. Mathematical & Physics</a></li>
+        <li><a href="#modules" class="sidebar-link">4. Operational Modules</a></li>
+        <li><a href="#geospatial" class="sidebar-link">5. Geospatial Architecture</a></li>
+        <li><a href="#design" class="sidebar-link">6. Design & Zero-Emoji</a></li>
+        <li><a href="#telemetry" class="sidebar-link">7. Telemetry Data Model</a></li>
+        <li><a href="#deployment" class="sidebar-link">8. Setup & Verification</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+
+      <!-- Hero Header -->
+      <section class="doc-hero" id="summary">
+        <h1 class="doc-title">VelocIQ Precision Telematics & Fleet Intelligence</h1>
+        <div class="doc-subtitle">Autonomous Fleet Telematics, Speed-to-Mileage Physics Engine, and Digital Twin Intelligence</div>
+        <div class="meta-badges">
+          <div class="badge"><span class="badge-dot"></span> Production Architecture v1.0.0</div>
+          <div class="badge">Engine: React 18.3 + Three.js + Leaflet</div>
+          <div class="badge">Simulation Tick: 300ms Synchronous</div>
+          <div class="badge">Enterprise Ready: Zero-Key Geospatial</div>
+        </div>
+      </section>
+
+      <!-- Section 1: Executive Summary -->
+      <section>
+        <h2>1. Executive Summary & Core Mission</h2>
+        <p>
+          <strong>VelocIQ</strong> is an enterprise-grade connected vehicle telematics and intelligent fleet management platform designed to solve the fundamental physical contradiction of ground fleet transit: <strong>the non-linear penalty of speed on fuel and energy economy</strong>.
+        </p>
+        <p>
+          Traditional fleet telematics systems track vehicle coordinates and scalar odometer readings, failing to understand the thermodynamic and aerodynamic physics governing energy consumption. VelocIQ unifies real-time ECU sensor streaming, aerodynamic drag modeling, GLOSA traffic signal speed advisories, living digital twin behavioral learning, and an interactive 3D WebGL engine simulation into a single mission-control dashboard.
+        </p>
+
+        <div class="grid-3">
+          <div class="stat-box">
+            <div class="stat-label">Cubic Aerodynamic Tax</div>
+            <div class="stat-value">P ∝ v³</div>
+            <div class="stat-desc">+33% speed requires +137% power</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Kinetic Braking Tax</div>
+            <div class="stat-value">345.7 kJ</div>
+            <div class="stat-desc">Dissipated per 80 → 0 km/h stop</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">AI Cruise Savings</div>
+            <div class="stat-value">12 - 15%</div>
+            <div class="stat-desc">Autonomous throttle optimization</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Technology Stack -->
+      <section id="techstack">
+        <h2>2. Technology Stack Specification</h2>
+        <p>
+          VelocIQ is engineered as a zero-dependency-overhead, client-side reactive web platform with instant hot-reload and resilient offline data caching.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Technologies</th>
+              <th>Version</th>
+              <th>Operational Role & Implementation Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Frontend Core</strong></td>
+              <td>React & React DOM</td>
+              <td>18.3.1</td>
+              <td>Concurrent rendering mode, declarative component hierarchy, 300ms state updates.</td>
+            </tr>
+            <tr>
+              <td><strong>Routing Architecture</strong></td>
+              <td>React Router DOM</td>
+              <td>7.18.1</td>
+              <td>Client-side routing across 10 analytical modules with protected authentication guard.</td>
+            </tr>
+            <tr>
+              <td><strong>3D Graphics Engine</strong></td>
+              <td>Three.js</td>
+              <td>r186.1</td>
+              <td>Custom WebGL crankshaft, connecting rod, piston simulation, and thermal vertex shaders.</td>
+            </tr>
+            <tr>
+              <td><strong>Geospatial Cartography</strong></td>
+              <td>Leaflet & React-Leaflet</td>
+              <td>1.9.4 / 4.2.1</td>
+              <td>Real-road expressway rendering, rotating SVG vehicle glyphs, zero-key tile providers.</td>
+            </tr>
+            <tr>
+              <td><strong>Data Visualization</strong></td>
+              <td>Recharts</td>
+              <td>2.14.0</td>
+              <td>Responsive SVG charts (parabolic speed-mileage radar, dyno curves, loss functions).</td>
+            </tr>
+            <tr>
+              <td><strong>Styling & Design</strong></td>
+              <td>Tailwind CSS</td>
+              <td>3.4.13</td>
+              <td>Dark glassmorphism tokens, radial ambient glow, and strict zero-emoji vector SVGs.</td>
+            </tr>
+            <tr>
+              <td><strong>Build & Bundling</strong></td>
+              <td>Vite</td>
+              <td>5.4.10</td>
+              <td>Sub-millisecond Hot Module Replacement (HMR) and optimized tree-shaken production bundles.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 3: Mathematical & Physics Engine -->
+      <section id="physics">
+        <h2>3. Mathematical & Physics Modeling Engine</h2>
+        <p>
+          All intelligence in VelocIQ is anchored in continuous mathematical equations implemented in <code>src/utils/speedMileagePhysics.js</code> and <code>src/utils/engineTwinPhysics.js</code>.
+        </p>
+
+        <h3>3.1 Aerodynamic Drag Force & Cubic Power Dissipation</h3>
+        <p>
+          Aerodynamic resistance accounts for over 50% of total energy dissipation at highway velocities:
+        </p>
+        <div class="math-block">
+          <div class="math-label">Aerodynamic Drag Force (Newtons)</div>
+          F_drag = 0.5 · ρ · Cd · A · v²
+        </div>
+        <div class="math-block">
+          <div class="math-label">Mechanical Power Dissipated (Watts)</div>
+          P_drag = F_drag · v = 0.5 · ρ · Cd · A · v³
+        </div>
+        <p>
+          Where air density ρ = 1.225 kg/m³, Cd is the vehicle drag coefficient (Sedan: 0.28, SUV: 0.38, Hatchback: 0.32), A is the frontal area (m²), and v is relative airspeed in m/s. Accelerating from 90 km/h to 120 km/h scales power cubically by <strong>(120/90)³ = 2.37×</strong>.
+        </p>
+
+        <h3>3.2 Parabolic Speed vs. Mileage Curve</h3>
+        <p>
+          Internal combustion engines peak in thermal efficiency at moderate mid-range engine loads (55–65 km/h). VelocIQ calculates fuel economy M(v) in km/L using a second-order polynomial with an aerodynamic decay penalty:
+        </p>
+        <div class="math-block">
+          <div class="math-label">Speed vs. Mileage Equation</div>
+          M(v) = M_peak · [1 - α · ((v - v_sweet) / v_sweet)²] - β · (v / 100)³ - γ_payload
+        </div>
+
+        <h3>3.3 Kinetic Braking Energy Loss (Stop-and-Go Tax)</h3>
+        <p>
+          Every mechanical braking event converts momentum into waste heat:
+        </p>
+        <div class="math-block">
+          <div class="math-label">Kinetic Dissipation</div>
+          ΔEk = 0.5 · m · (v_initial² - v_final²)
+        </div>
+        <div class="math-block">
+          <div class="math-label">Fuel Liters Wasted</div>
+          Fuel_wasted = ΔEk / (Gasoline Energy Density 34,200 kJ/L · 28% Thermal Efficiency)
+        </div>
+
+        <h3>3.4 GLOSA (Green Light Optimal Speed Advisory)</h3>
+        <p>
+          Given a V2X intersection at distance D (meters) with remaining phase duration T_rem (seconds):
+        </p>
+        <div class="math-block">
+          <div class="math-label">Advisory Target Speed</div>
+          v_target = D / T_rem
+        </div>
+        <p>
+          If v_target ≤ speed limit, the driver coasts to pass through without decelerating to a complete halt, eliminating 100% of the stop-and-go kinetic penalty.
+        </p>
+
+        <h3>3.5 Thermodynamic Mean-Value Engine Model (MVEM) & Air Leak FDI</h3>
+        <p>
+          In <code>src/utils/enginePhysicsFDI.js</code>, the intake plenum pressure dynamics are modeled as:
+        </p>
+        <div class="math-block">
+          <div class="math-label">Intake Manifold Pressure Differential</div>
+          dP_m / dt = (R · T_m / V_m) · (m_throttle_dot + m_leak_dot - m_cyl_dot)
+        </div>
+        <p>
+          Orifice leak equations classify vacuum breaches: Intake Manifold Gasket Blowouts (P0171/P0106), Throttle Coupler Tears (P0101), and Exhaust Header Flange Cracks (P0131).
+        </p>
+      </section>
+
+      <!-- Section 4: Operational Modules -->
+      <section id="modules">
+        <h2>4. Comprehensive Operational Module Catalog</h2>
+
+        <div class="card">
+          <div class="card-title">Module 1: Live Telemetry & Aerodynamics (/dashboard)</div>
+          <p>Dual circular high-refresh SVG gauges (Speed & RPM), live parabolic speed-mileage radar, instantaneous aerodynamic drag calculation, OBD-II DTC diagnostic scanner, and BLE connection resilience.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 2: GPS Expressway Navigation & GLOSA (/navigation)</div>
+          <p>Real-road navigation across the 25 km Delhi Fleet Corridor (Connaught Place to IGI Airport Cargo Terminal). Features rotating directional vehicle glyphs, turn-by-turn HUD, 4-tier tile provider switcher (Esri Dark Canvas, OpenStreetMap, Esri Satellite, TomTom), GLOSA intersection speed countdowns, Limp-Home Range Governor, Open-Meteo live weather, and persistent trip log replay.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 3: Speed-to-Mileage What-If Lab (/simulator)</div>
+          <p>Dedicated physics experimentation workbench. Adjust cruising speed, vehicle profile, payload weight (kg), headwind/tailwind vector (km/h), ambient temperature (°C), fuel price, and stop frequency. Visualizes dual-axis Recharts curves (Mileage vs. Range) and saves Scenarios A, B, and C for side-by-side evaluation.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 4: 3D Interactive WebGL Engine Twin & FDI (/engine-twin)</div>
+          <p>Three.js mechanical simulation of a 4-cylinder engine block. Piston kinematics synchronized with vehicle RPM. Features CAD exploded factor slider (0.0 to 1.0), dynamic thermal shaders (70°C to 105°C+), dynamometer power sweep curves, live cylinder pressure oscilloscopes, and simulated intake/exhaust vacuum leak fault injection.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 5: Predictive Maintenance & Wear Runway (/maintenance)</div>
+          <p>Real-time degradation tracking for Engine Oil, Brake Pads, Starter Battery, and Cooling System. Features AI Remaining Useful Life (RUL) countdowns (days and km remaining) and one-click technician service resets.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 6: Fleet Garage & Multi-Asset Tracking (/fleet)</div>
+          <p>Regional multi-vehicle map canvas tracking all assets across Delhi NCR simultaneously. Vector status pins (Active emerald pulse, Idle amber, Maintenance ruby). Roster management with driver dispatch assignment and one-click telematics monitoring switcher.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 7: Driver Safety Score & Kinetic Waste Log (/safety)</div>
+          <p>Algorithmic safety score (0–100) with dynamic penalties for harsh braking (-3.5 pts), rapid acceleration (-2.5 pts), speeding (-0.8 pts), and overrev (-0.5 pts). Logs kinetic energy dissipated in kJ per incident and delivers AI coaching feedback.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 8: Threat Defense & Remote Immobilizer (/security)</div>
+          <p>Autonomous threat radar (Secure, Elevated, Critical, Alert), fuel siphoning detection, CAN bus dropout alarm, municipal geofence boundary sentry, and remote dispatcher engine immobilizer kill-switch.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 9: Living Digital Twin & Self-Learning Optimizer (/digital-twin)</div>
+          <p>90-day operational baselines, multi-variate drift metrics, AI Driver Twin behavioral modeling (jerk index, throttle ramp aggressiveness), 3-pillar optimization radar (Safety, Efficiency, Health), and 6-stage closed loop self-learning cycle (Sense → Model → Diagnose → Prescribe → Actuate → Verify).</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Module 10: AI Analytics & 3-Tier Financial Matrix (/analytics)</div>
+          <p>Side-by-side financial comparison between Eco (70 km/h), Cruise (95 km/h), and Rush (120 km/h) accounting for driver Value of Time ($/hr). Includes interactive neural network hyperparameter model tuner (learning rates, epochs) with live training loss vs. validation curves.</p>
+        </div>
+      </section>
+
+      <!-- Section 5: Geospatial Architecture -->
+      <section id="geospatial">
+        <h2>5. Geospatial Architecture & Zero-Key Map Engine</h2>
+        <p>
+          VelocIQ operates a multi-layer geospatial engine built on Leaflet 1.9.4 and React-Leaflet 4.2.1, completely independent of commercial map API keys or vendor watermarks.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Tileset URL Endpoint</th>
+              <th>API Key Required</th>
+              <th>Watermark</th>
+              <th>Primary Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Esri Dark Canvas</strong></td>
+              <td><code>services.arcgisonline.com/.../Canvas/World_Dark_Gray_Base</code></td>
+              <td>No (Zero-Key)</td>
+              <td>None</td>
+              <td>Default telematics theme; high-contrast dark road grid.</td>
+            </tr>
+            <tr>
+              <td><strong>OpenStreetMap</strong></td>
+              <td><code>tile.openstreetmap.org/{z}/{x}/{y}.png</code></td>
+              <td>No (Zero-Key)</td>
+              <td>None</td>
+              <td>Civic open standard; detailed street and landmark cartography.</td>
+            </tr>
+            <tr>
+              <td><strong>Esri Satellite</strong></td>
+              <td><code>services.arcgisonline.com/.../World_Imagery</code></td>
+              <td>No (Zero-Key)</td>
+              <td>None</td>
+              <td>Photorealistic aerial photography for terrain & depot inspection.</td>
+            </tr>
+            <tr>
+              <td><strong>TomTom Traffic</strong></td>
+              <td><code>api.tomtom.com/traffic/map/4/tile/flow/...</code></td>
+              <td>Optional Free Key</td>
+              <td>None</td>
+              <td>Live expressway congestion color overlay.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 6: Design System -->
+      <section id="design">
+        <h2>6. Visual Design System & Strict Zero-Emoji Policy</h2>
+        <p>
+          To maintain mission-critical enterprise design standards, VelocIQ operates under a <strong>Strict Zero-Emoji Policy</strong>:
+        </p>
+        <ul>
+          <li><strong>100% Bespoke Inline Vector SVGs</strong>: Every icon, glyph, status indicator, and warning light is a hand-crafted SVG in <code>src/components/icons</code>.</li>
+          <li><strong>Consistent Multi-OS Rendering</strong>: Eliminates operating system emoji font discrepancies between Windows, macOS, Linux, and mobile devices.</li>
+          <li><strong>Dark Glassmorphism UI</strong>: Deep slate base (<code>#020617</code>), translucent cards with <code>backdrop-blur-md</code>, and neon signal accents (Cyan, Emerald, Amber, Rose).</li>
+        </ul>
+      </section>
+
+      <!-- Section 7: Telemetry Schema -->
+      <section id="telemetry">
+        <h2>7. Central Telemetry Data Contract</h2>
+        <p>
+          The central simulation engine in <code>src/App.jsx</code> broadcasts the following state object every 300ms:
+        </p>
+        <pre><code>interface TelemetryPacket {
+  speed: number;             // Vehicle speed in km/h (0 - 180)
+  rpm: number;               // Engine RPM (800 - 6500)
+  coolant: number;           // Coolant temperature in °C (60 - 115)
+  maf: number;               // Mass Air Flow sensor in g/s (2.0 - 45.0)
+  fuel: number;              // Fuel tank level percentage (0 - 100%)
+  tripMileage: number;       // Cumulative trip fuel economy in km/L
+  co2: number;               // Cumulative CO2 emitted in kg
+  score: number;             // Driver safety score (0 - 100)
+  voltage: number;           // 12V Starter Battery voltage (11.8 - 14.4V)
+  partsWear: {               // Component health percentage
+    oil: number;
+    brakes: number;
+    battery: number;
+    coolant: number;
+  };
+  predictedFailureDays: {    // Days until service required
+    oil: number;
+    brakes: number;
+    battery: number;
+    coolant: number;
+  };
+  route: {
+    progress: number;        // Percentage completed (0 - 100%)
+    lat: number;
+    lon: number;
+    heading: number;         // Compass heading in degrees (0 - 360)
+    etaMinutes: number;      // Dynamic arrival estimate
+  };
+}</code></pre>
+      </section>
+
+      <!-- Section 8: Setup & Verification -->
+      <section id="deployment">
+        <h2>8. Development, Installation & Verification Guide</h2>
+        <p>
+          VelocIQ runs seamlessly on any Node.js environment:
+        </p>
+        <pre><code># 1. Clone repository
+git clone https://github.com/your-org/velociq.git
+cd velociq
+
+# 2. Install dependencies
+npm install
+
+# 3. Start local development server
+npm run dev
+# Server accessible at http://localhost:3005
+
+# 4. Compile optimized production build
+npm run build</code></pre>
+
+        <h3>Operational Verification Checklist</h3>
+        <ul>
+          <li>✔ <strong>Live Gauges</strong>: Dynamic Speed & RPM needle sweeps in <code>/dashboard</code>.</li>
+          <li>✔ <strong>Expressway Navigation</strong>: Vehicle moves along Delhi route with turn-by-turn HUD in <code>/navigation</code>.</li>
+          <li>✔ <strong>What-If Simulator</strong>: Sliders update dual-axis Recharts curves in <code>/simulator</code>.</li>
+          <li>✔ <strong>3D WebGL Engine Twin</strong>: Piston kinematics synchronize with RPM and explode cleanly in <code>/engine-twin</code>.</li>
+          <li>✔ <strong>Fleet Garage</strong>: Multi-vehicle map pins render and switch telemetry in <code>/fleet</code>.</li>
+          <li>✔ <strong>Living Digital Twin</strong>: 6-stage self-learning cycle executes seamlessly in <code>/digital-twin</code>.</li>
+        </ul>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Smooth scrolling for sidebar links
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        const targetId = this.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+
+    // Client-side markdown file download
+    function downloadMarkdown() {
+      const markdownContent = `# VelocIQ Precision Telematics & Autonomous Fleet Intelligence
+## Complete Technical, Architectural, and Operational Documentation
+*Document Version: 1.0.0 Production Release*
+
+(Refer to COMPLETE_PROJECT_DOCUMENTATION.md in workspace for full markdown content.)
+`;
+      const blob = new Blob([markdownContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'VelocIQ_Complete_Documentation.md';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

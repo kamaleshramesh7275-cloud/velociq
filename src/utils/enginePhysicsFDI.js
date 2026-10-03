@@ -3,13 +3,15 @@
  * 
  * Thermodynamic Mean-Value Engine Model (MVEM) &
  * Fault Detection and Isolation (FDI) Engine for Intake/Exhaust Air Leaks.
+ * Generalised across all 10 powertrain families.
  */
+
+import { getEngineType } from '../config/engineTypes.js';
 
 // Atmospheric constants
 const P_AMB = 101.325; // kPa (Standard atmospheric pressure)
 const T_AMB = 298.15;  // Kelvin (25°C)
 const R_AIR = 287.05;  // J/(kg·K)
-const V_MANIFOLD = 0.0035; // m^3 (3.5L intake plenum)
 
 export const FAULT_LOCATIONS = {
   NONE: 'NONE',
@@ -50,7 +52,7 @@ export const FAULT_PRESETS = [
     location: FAULT_LOCATIONS.EXHAUST_HEADER,
     leakDiameterMm: 4.8,
     throttlePct: 25,
-    description: 'Thermal fracture at cylinder #1 exhaust runner flange. Exhaust pulses draw ambient air pre-O2 sensor.'
+    description: 'Thermal fracture at cylinder exhaust runner flange. Exhaust pulses draw ambient air pre-O2 sensor.'
   },
   {
     id: 'downpipe_flex_leak',
@@ -114,33 +116,73 @@ export const COMPONENT_METADATA = {
 };
 
 /**
- * Runs one simulation step for the engine air path physics
+ * Runs one simulation step for the engine air path physics (Parametric by Engine Type)
  */
 export function simulateEngineAirPath({
   rpm = 850,
   throttlePct = 15,
   faultLocation = FAULT_LOCATIONS.NONE,
   leakDiameterMm = 0,
-  time = 0
+  time = 0,
+  engineTypeId = 'i4_petrol'
 }) {
+  const engine = getEngineType(engineTypeId);
+
+  // If electric powertrain (BEV), air path leaks are not applicable
+  if (engine.category === 'BEV') {
+    return {
+      telemetry: {
+        rpm,
+        throttlePct,
+        nominalMAP: 101.3,
+        actualMAP: 101.3,
+        nominalMAF: 0.0,
+        actualMAF: 0.0,
+        lambda: 1.000,
+        afr: 0.0,
+        stft: 0.0,
+        ltft: 0.0,
+        preCatO2: 0.450,
+        postCatO2: 0.680,
+        unmeteredAirGramsPerSec: 0.0,
+        exhaustLeakFlow: 0.0,
+        engineVacuumKPa: 0.0
+      },
+      residuals: {
+        r_MAP: 0,
+        r_MAF: 0,
+        r_STFT: 0,
+        r_Lambda: 0,
+        r_O2_Variance: 0
+      },
+      fdiVerdict: {
+        status: 'NOMINAL',
+        isolatedComponent: null,
+        confidence: 99.8,
+        severity: 'Low',
+        summary: 'BEV electric powertrain: zero intake throttle restriction, hermetic coolant loop intact.',
+        dtcToTrigger: []
+      }
+    };
+  }
+
   // 1. Throttle Angle & Effective Orifice Area
-  const alpha = Math.max(2, Math.min(90, (throttlePct / 100) * 90)); // degrees
+  const alpha = Math.max(2, Math.min(90, (throttlePct / 100) * 90));
   const rad = (alpha * Math.PI) / 180;
-  // Normalized throttle flow area
-  const A_th = (1 - Math.cos(rad)) * 0.0018 + 0.00012; // m^2
+  const A_th = (1 - Math.cos(rad)) * 0.0018 + 0.00012;
 
   // 2. Leak Area
   const leakRadiusM = (Math.max(0, leakDiameterMm) / 2) / 1000;
-  const A_leak = Math.PI * (leakRadiusM * leakRadiusM); // m^2
+  const A_leak = Math.PI * (leakRadiusM * leakRadiusM);
 
-  // 3. Engine Displacement Pumping Capacity (2.0L 4-cylinder engine)
-  const V_d = 0.002; // 2.0 Liters = 0.002 m^3
+  // 3. Engine Displacement Pumping Capacity (Parametric)
+  const dispL = engine.displacementL || 2.0;
+  const V_d = dispL / 1000; // m^3
   const volumetricEfficiency = 0.85 + (throttlePct / 100) * 0.08;
-  const enginePumpingRate = (V_d * (rpm / 60) * volumetricEfficiency) / 2; // m^3/s of air drawn
+  const enginePumpingRate = (V_d * (rpm / 60) * volumetricEfficiency) / 2;
 
-  // 4. Manifold Pressure Physics (Nominal)
-  // Balance between throttle inflow and engine pumping outflow
-  const baseMapIdle = 30.5; // kPa
+  // 4. Manifold Pressure Physics
+  const baseMapIdle = 30.5;
   const mapRisePerThrottle = 70.8 * Math.pow(throttlePct / 100, 0.7);
   const nominalMAP = Math.min(P_AMB, baseMapIdle + mapRisePerThrottle);
 
@@ -151,18 +193,14 @@ export function simulateEngineAirPath({
   let exhaustLeakFlow = 0;
 
   if (faultLocation === FAULT_LOCATIONS.INTAKE_MANIFOLD) {
-    // Air rushes into intake vacuum: mass flow proportional to pressure differential
     const vacuumDelta = Math.max(0, P_AMB - actualMAP);
-    // Leak flow in g/s
     unmeteredAirGramsPerSec = A_leak * 1e6 * 0.85 * (vacuumDelta / 70);
-    // Vacuum diminishes: MAP rises toward atmospheric pressure!
     actualMAP = Math.min(P_AMB, nominalMAP + (unmeteredAirGramsPerSec * 4.2));
   } else if (faultLocation === FAULT_LOCATIONS.THROTTLE_COUPLER) {
     const vacuumDelta = Math.max(0, P_AMB - actualMAP);
     unmeteredAirGramsPerSec = A_leak * 1e6 * 0.65 * (vacuumDelta / 75);
     actualMAP = Math.min(P_AMB, nominalMAP + (unmeteredAirGramsPerSec * 3.1));
   } else if (faultLocation === FAULT_LOCATIONS.EXHAUST_HEADER) {
-    // High-frequency exhaust pulses create negative pressure venturi waves that suck ambient air in
     const pulseFactor = 0.4 + 0.6 * Math.sin(time * (rpm / 60) * Math.PI * 2);
     falseO2Suction = (leakDiameterMm / 10) * 0.35 * Math.max(0, pulseFactor);
     exhaustLeakFlow = (leakDiameterMm / 10) * 1.8;
@@ -170,70 +208,53 @@ export function simulateEngineAirPath({
     exhaustLeakFlow = (leakDiameterMm / 10) * 2.4;
   }
 
-  // 6. Mass Air Flow (MAF) Sensor (measured at the intake filter)
-  // Nominal MAF is proportional to engine load and RPM
-  const nominalMAF = Math.max(2.1, (rpm / 1000) * 2.6 + (throttlePct / 100) * 28.0);
-  
-  // If there is an intake leak downstream, the engine gets air through the leak,
-  // so the metered MAF at the intake entrance drops relative to the actual manifold charge!
+  // 6. Mass Air Flow (MAF) Sensor
+  const nominalMAF = Math.max(2.1, (rpm / 1000) * (dispL * 1.3) + (throttlePct / 100) * (dispL * 14.0));
   let actualMAF = nominalMAF;
   if (unmeteredAirGramsPerSec > 0) {
     actualMAF = Math.max(1.5, nominalMAF - (unmeteredAirGramsPerSec * 0.72));
   }
 
-  // 7. Lambda & Air-Fuel Ratio (AFR)
-  // ECU calculates fuel injector pulse width based on measured MAF (metered air)
-  const targetAFR = 14.7; // Stoichiometric
+  // 7. Lambda & AFR
+  const targetAFR = engine.fuelType === 'cng' ? 17.2 : 14.7;
   const commandedFuelGrams = actualMAF / targetAFR;
   const totalCylinderAir = actualMAF + unmeteredAirGramsPerSec;
-  
-  // True Lambda inside combustion chamber
   let trueLambda = totalCylinderAir / (commandedFuelGrams * targetAFR);
 
-  // 8. ECU Closed Loop Fuel Trim (STFT & LTFT)
-  // The ECU senses O2 in the exhaust and tries to correct trueLambda back to 1.00
+  // 8. Fuel Trim (STFT)
   let stftPct = 0;
   if (unmeteredAirGramsPerSec > 0) {
-    // To compensate for extra unmetered air, ECU increases fuel trim up to +25% limit
     stftPct = Math.min(25.0, (unmeteredAirGramsPerSec / nominalMAF) * 100 * 1.6);
   } else if (faultLocation === FAULT_LOCATIONS.EXHAUST_HEADER) {
-    // False oxygen sucked into exhaust manifold fools the O2 sensor into reading lean
     stftPct = Math.min(22.0, falseO2Suction * 40);
   }
 
-  // With closed-loop trim active, trueLambda is partially corrected:
   const correctedLambda = trueLambda / (1 + stftPct / 100);
 
-  // 9. Pre-Cat and Post-Cat Oxygen Sensor Voltages
-  // Pre-Cat O2 cycles rapidly between 0.1V (lean) and 0.9V (rich)
+  // 9. O2 Sensors
   const o2Oscillation = Math.sin(time * 3.5);
   let preCatO2 = 0.45 + 0.4 * o2Oscillation;
 
   if (correctedLambda > 1.05 || falseO2Suction > 0.08) {
-    // Lean or false lean: sensor gets pinned low (0.05V - 0.25V)
     preCatO2 = Math.max(0.08, 0.25 - (correctedLambda - 1.0) * 0.8 + 0.06 * Math.sin(time * 8));
   }
 
-  // Post-Cat O2 (Downstream): Under healthy catalytic converter, stays stable ~0.65V - 0.72V
   let postCatO2 = 0.68 + 0.02 * Math.sin(time * 0.8);
   if (faultLocation === FAULT_LOCATIONS.DOWNPIPE_FLEX || faultLocation === FAULT_LOCATIONS.EXHAUST_HEADER) {
-    // Ambient air or leak disrupts cat conversion: post-O2 begins tracking pre-O2 waves (P0420 condition)
     postCatO2 = 0.35 + 0.25 * Math.sin(time * 2.8);
   }
 
-  // Add realistic subtle sensor noise
   const noise = (Math.random() - 0.5) * 0.02;
   actualMAP += (Math.random() - 0.5) * 0.3;
   actualMAF += (Math.random() - 0.5) * 0.1;
 
-  // 10. Compute FDI Residuals (Observed - Nominal Model)
+  // 10. Residuals
   const r_MAP = actualMAP - nominalMAP;
   const r_MAF = actualMAF - nominalMAF;
   const r_STFT = stftPct;
   const r_Lambda = correctedLambda - 1.00;
   const r_O2_Variance = Math.abs(preCatO2 - 0.45);
 
-  // 11. Run FDI Fault Isolation Engine
   const fdiVerdict = runFaultIsolationClassifier({
     r_MAP,
     r_MAF,
@@ -254,7 +275,7 @@ export function simulateEngineAirPath({
       nominalMAF: Number(nominalMAF.toFixed(2)),
       actualMAF: Number(actualMAF.toFixed(2)),
       lambda: Number(correctedLambda.toFixed(3)),
-      afr: Number((correctedLambda * 14.7).toFixed(2)),
+      afr: Number((correctedLambda * targetAFR).toFixed(2)),
       stft: Number(stftPct.toFixed(1)),
       ltft: Number((stftPct * 0.6).toFixed(1)),
       preCatO2: Number(Math.max(0.02, Math.min(0.98, preCatO2 + noise)).toFixed(3)),
@@ -274,9 +295,6 @@ export function simulateEngineAirPath({
   };
 }
 
-/**
- * FDI Decision Engine & Parity Matrix
- */
 function runFaultIsolationClassifier({
   r_MAP,
   r_MAF,
@@ -299,8 +317,6 @@ function runFaultIsolationClassifier({
     };
   }
 
-  // FDI Rule 1: Intake Manifold Vacuum Leak
-  // High positive MAP residual (vacuum collapse) + High positive STFT + MAF drop relative to load
   if (r_MAP > 4.0 && r_STFT > 8.0 && r_MAF < -0.5) {
     const confidence = Math.min(99.4, 82 + (r_MAP * 1.8) + (r_STFT * 0.4));
     return {
@@ -314,8 +330,6 @@ function runFaultIsolationClassifier({
     };
   }
 
-  // FDI Rule 2: Throttle Body Coupler / Boot Tear
-  // Moderate MAP rise, moderate positive STFT, MAF drop, erratic tip-in
   if (r_MAP > 2.0 && r_STFT > 5.0 && r_MAF <= 0) {
     const confidence = Math.min(96.8, 78 + (r_MAP * 2.2));
     return {
@@ -329,8 +343,6 @@ function runFaultIsolationClassifier({
     };
   }
 
-  // FDI Rule 3: Exhaust Header Flange Crack (Pre-O2)
-  // MAP normal (~0), MAF normal (~0), but Pre-Cat O2 pinned lean + high STFT compensation + high frequency variance
   if (Math.abs(r_MAP) < 3.5 && preCatO2 < 0.28 && r_STFT > 6.0) {
     const confidence = Math.min(98.5, 84 + (r_STFT * 1.1));
     return {
@@ -344,8 +356,6 @@ function runFaultIsolationClassifier({
     };
   }
 
-  // FDI Rule 4: Downpipe / Flex-Joint Breach
-  // MAP normal, MAF normal, STFT near normal, but Post-Cat O2 erratic / oscillating (P0420 precursor)
   if (Math.abs(r_MAP) < 3.0 && Math.abs(r_STFT) < 6.0 && postCatO2 < 0.55) {
     return {
       status: 'FAULT_ISOLATED',
@@ -358,7 +368,6 @@ function runFaultIsolationClassifier({
     };
   }
 
-  // Default fallback if anomaly is detected but confidence is spreading
   return {
     status: 'FAULT_DETECTED_UNRESOLVED',
     isolatedComponent: FAULT_LOCATIONS.INTAKE_MANIFOLD,

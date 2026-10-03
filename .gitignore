@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node modules
+node_modules/
+.pnp
+.pnp.js
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.local
+
+# Capacitor & Android builds
+android/.gradle/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+
+# Compiled APKs and bundles
+*.apk
+*.aab
+public/downloads/*.apk
+
+# Vite cache
+.vite/
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary media storage & scratchpads
+.tempmediaStorage/

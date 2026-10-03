@@ -9,6 +9,7 @@ import {
   AlertTriangleIcon,
 } from './icons';
 import { Drawer, CommandPalette, SeverityBadge, StatusPill, WarningLight, RacingStripe } from './ui';
+import RoleSwitcher from './RoleSwitcher';
 
 export default function CommandBar({
   isConnected,
@@ -17,6 +18,7 @@ export default function CommandBar({
   aiThoughtLogs = [],
   activeDTCs = [],
   securityState,
+  onToggleMobileMenu,
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,15 +45,27 @@ export default function CommandBar({
 
   return (
     <>
-      <header className="relative h-16 border-b border-line bg-white px-6 flex items-center justify-between z-20 shrink-0 select-none shadow-xs">
-        {/* Breadcrumb & Global Search Button */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 font-mono text-xs">
-            <span className="font-display font-black text-sm tracking-wider text-[#0B3D91]">VELOCIQ</span>
-            <span className="text-slate-400 font-bold">/</span>
-            <span className="text-[#0B3D91] font-bold">{currentCrumb.section}</span>
-            <span className="text-slate-400 font-bold">/</span>
-            <span className="text-slate-900 font-black tracking-wide">
+      <header className="relative h-14 sm:h-16 border-b border-line bg-white px-3 sm:px-6 flex items-center justify-between z-20 shrink-0 select-none shadow-xs">
+        {/* Mobile Hamburger & Breadcrumb & Global Search Button */}
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+          {/* Mobile Menu Hamburger */}
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="md:hidden p-1.5 -ml-1 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition"
+            title="Toggle Navigation Menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs min-w-0">
+            <span className="font-display font-black text-sm tracking-wider text-[#0B3D91] shrink-0">VELOCIQ</span>
+            <span className="text-slate-300 font-bold hidden sm:inline">/</span>
+            <span className="text-[#0B3D91] font-bold hidden sm:inline">{currentCrumb.section}</span>
+            <span className="text-slate-300 font-bold">/</span>
+            <span className="text-slate-900 font-black tracking-wide truncate">
               {currentCrumb.page}
             </span>
           </div>
@@ -106,6 +120,9 @@ export default function CommandBar({
             </svg>
             <span className="font-bold text-[11px]">AI AGENT</span>
           </div>
+
+          {/* Role Persona Switcher */}
+          <RoleSwitcher compact />
 
           {/* Alert Notification Bell with Warning Light Icon Badge */}
           <button

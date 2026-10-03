@@ -44,6 +44,19 @@ body {
   box-sizing: border-box;
 }
 
+/* Mobile Native App Touch and Safe-Area Support */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  max-width: 100vw;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* Headings use automotive Rajdhani / Barlow */
 h1, h2, h3, h4, .font-display {
   font-family: 'Rajdhani', 'Barlow Semi Condensed', ui-sans-serif, system-ui, sans-serif;

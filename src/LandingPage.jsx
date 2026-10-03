@@ -96,7 +96,18 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <a 
+              href="/downloads/VelocIQ.apk" 
+              download="VelocIQ.apk"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-emerald-800 bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
+              title="Download Native Android APK (9.1 MB)"
+            >
+              <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4116 13.8533 8.125 12 8.125s-3.5902.2866-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+              </svg>
+              <span>Download APK</span>
+            </a>
             <button 
               onClick={() => handleLaunch('/dashboard')} 
               className="px-5 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-wider text-white bg-[#0B3D91] hover:bg-[#082b68] transition shadow-sm"
@@ -146,8 +157,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Single Primary CTA */}
-        <div className="flex items-center gap-4">
+        {/* Primary CTAs */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={() => handleLaunch('/dashboard')}
             className="px-8 py-3.5 rounded-xl text-sm font-bold font-mono uppercase tracking-wider text-white bg-[#0B3D91] hover:bg-[#082b68] transition shadow-md flex items-center gap-2 group"
@@ -155,6 +166,18 @@ export default function LandingPage() {
             <span>Launch Mission Control</span>
             <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
           </button>
+
+          <a
+            href="/downloads/VelocIQ.apk"
+            download="VelocIQ.apk"
+            className="px-6 py-3.5 rounded-xl text-sm font-bold font-mono uppercase tracking-wider text-emerald-950 bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 transition shadow-sm flex items-center gap-2.5 group"
+          >
+            <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4116 13.8533 8.125 12 8.125s-3.5902.2866-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+            </svg>
+            <span>Download APK (9.1 MB)</span>
+            <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded font-mono font-bold">Android</span>
+          </a>
         </div>
 
         {/* Chequered Flag Section Divider */}

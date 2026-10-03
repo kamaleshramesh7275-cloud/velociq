@@ -41,6 +41,13 @@ import { useFleet } from '../context/FleetContext';
 
 export default function SimulatorPage({ telemetry }) {
   const { activeVehicle } = useFleet();
+  const engineType = {
+    label: '2.0L Inline-4 DOHC 16V Turbo',
+    shortLabel: '2.0L I4 Turbo',
+    mileageUnit: 'km/L',
+    fuelType: 'petrol',
+    category: 'ICE_PETROL'
+  };
 
   // Baseline live state
   const liveSpeed = Math.round(telemetry?.speed || 60);
@@ -88,17 +95,17 @@ export default function SimulatorPage({ telemetry }) {
 
   // Active simulated result
   const simResult = useMemo(() => {
-    return calculateMileageAtSpeed(targetSpeed, vehicleProfile, physicsOptions);
-  }, [targetSpeed, vehicleProfile, physicsOptions]);
+    return calculateMileageAtSpeed(targetSpeed, vehicleProfile, physicsOptions, currentEngineId);
+  }, [targetSpeed, vehicleProfile, physicsOptions, currentEngineId]);
 
   // Baseline live comparison result
   const baselineResult = useMemo(() => {
-    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0 });
-  }, [liveSpeed, liveProfile]);
+    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0 }, currentEngineId);
+  }, [liveSpeed, liveProfile, currentEngineId]);
 
   // Curve data points for dual-axis chart (Speed vs Mileage & Range)
   const curveData = useMemo(() => {
-    const rawCurve = generateSpeedMileageCurve(vehicleProfile, physicsOptions);
+    const rawCurve = generateSpeedMileageCurve(vehicleProfile, physicsOptions, currentEngineId);
     return rawCurve.map((pt) => {
       const rangeAtSpeed = Math.round(tankCapacityLiters * pt.kmPerL);
       return {
@@ -108,7 +115,7 @@ export default function SimulatorPage({ telemetry }) {
         dragPower: pt.dragPowerKw,
       };
     });
-  }, [vehicleProfile, physicsOptions, tankCapacityLiters]);
+  }, [vehicleProfile, physicsOptions, tankCapacityLiters, currentEngineId]);
 
   // KPI Calculations
   const simMileage = simResult.kmPerL;
@@ -120,7 +127,7 @@ export default function SimulatorPage({ telemetry }) {
   const cruiseFuelLiters = tripDistanceKm / Math.max(1, simMileage);
   const massKg = profile?.massKg || 1400;
   const stopPenalty = useMemo(() => {
-    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg);
+    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg, currentEngineId);
     const extraFuelLiters = (single.fuelWastedLiters || 0) * stopEventsCount;
     const totalEnergyDissipatedKj = (single.energyKj || 0) * stopEventsCount;
     const totalCostPenalty = (single.costPenalty || 0) * stopEventsCount;
@@ -129,9 +136,10 @@ export default function SimulatorPage({ telemetry }) {
       totalEnergyDissipatedKj,
       fuelWastedLiters: extraFuelLiters,
       extraFuelLiters,
-      costPenalty: totalCostPenalty
+      costPenalty: totalCostPenalty,
+      isRecovered: single.isRecovered
     };
-  }, [targetSpeed, massKg, stopEventsCount]);
+  }, [targetSpeed, massKg, stopEventsCount, currentEngineId]);
 
   const totalFuelLiters = cruiseFuelLiters + (stopPenalty.extraFuelLiters || 0);
   const totalFuelCost = totalFuelLiters * fuelPrice;
@@ -227,6 +235,12 @@ export default function SimulatorPage({ telemetry }) {
                 <SimulatorIcon className="w-7 h-7 text-[#0B3D91]" />
                 Speed vs. Mileage What-If Laboratory
               </h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-mono font-bold text-slate-800">Powertrain:</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-blue-50 text-[#0B3D91] border border-blue-200">
+                  {engineType.label} • {engineType.mileageUnit}
+                </span>
+              </div>
               <p className="mt-1 font-mono text-xs text-slate-700 font-medium">
                 Explore the cubic aerodynamic drag tax, stop-and-go energy dissipation, and financial trade-offs in real time.
               </p>

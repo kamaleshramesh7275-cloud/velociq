@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AIModelTuner from '../components/AIModelTuner';
 import AICoachingPanel from '../components/AICoachingPanel';
 import CostSavingsCalculator from '../components/CostSavingsCalculator';
 import DriverScore from '../components/DriverScore';
+import CustomReportBuilder from '../components/reporting/CustomReportBuilder';
 import { useFleet } from '../context/FleetContext';
 import { Card, SectionLabel } from '../components/ui';
 
@@ -12,6 +13,7 @@ export default function AnalyticsPage({
 }) {
   const { activeVehicle } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
+  const [activeTab, setActiveTab] = useState('optimization'); // 'optimization' | 'reports'
 
   return (
     <div className="p-6 md:p-8 text-text-hi flex-1 overflow-auto bg-[#F4F6F9]">
@@ -20,15 +22,47 @@ export default function AnalyticsPage({
         {/* Page Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-line">
           <div>
-            <SectionLabel label="INTELLIGENCE / AI ANALYTICS" />
+            <SectionLabel label="INTELLIGENCE / AI ANALYTICS & REPORTING" />
             <h1 className="text-2xl md:text-3xl font-bold text-text-hi font-heading tracking-tight mt-1">
-              AI Analytics & Financial Optimization Matrix
+              AI Analytics & Fleet Intelligence
             </h1>
             <p className="mt-1 text-xs text-text-mid">
-              Neural network hyperparameter training, speed-tier economics, and fleet-wide efficiency benchmarks.
+              Neural network training, speed-tier economics, RFC 4180 reporting, and fleet-wide exports.
             </p>
           </div>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('optimization')}
+              className={`px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'optimization'
+                  ? 'bg-[#0B3D91] text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>🧠 AI Optimization Matrix</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('reports')}
+              className={`px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'reports'
+                  ? 'bg-[#0B3D91] text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>📊 Custom Reports & Exports</span>
+            </button>
+          </div>
         </header>
+
+        {activeTab === 'reports' ? (
+          <CustomReportBuilder />
+        ) : (
+          <>
 
         {/* HERO KPI ROW: Fleet avg km/L, Safety trend, CO2 reduction, Cost saved */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -93,6 +127,8 @@ export default function AnalyticsPage({
           <DriverScore telemetry={telemetry} driver={activeDriver} />
           <AICoachingPanel telemetry={telemetry} isConnected={isConnected} speedLimit={speedLimit} driverModel={modelState.driver} />
         </div>
+        </>
+        )}
 
       </div>
     </div>

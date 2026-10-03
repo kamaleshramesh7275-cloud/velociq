@@ -108,8 +108,8 @@ export function AnalogDial({
   const needleTail = polarToCartesian(cx, cy, 14, currentAngle + 180);
 
   return (
-    <div className="relative inline-flex flex-col items-center justify-center select-none">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <div className="relative inline-flex flex-col items-center justify-center select-none max-w-full">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="max-w-full h-auto">
         <defs>
           {/* Bezel Ring Gradient */}
           <linearGradient id={`bezel-grad-${size}`} x1="0" y1="0" x2="1" y2="1">

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, Outlet } from 'react-router-dom';
+import { Navigate, Route, Routes, Outlet, useLocation } from 'react-router-dom';
 import { SimulationContext } from './context/SimulationContext';
 import { FleetProvider, useFleet } from './context/FleetContext';
 import FleetManager from './pages/FleetManager';
 import Sidebar from './components/Sidebar';
+import MobileBottomNav from './components/MobileBottomNav';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import SimulationSettings from './components/SimulationSettings';
@@ -18,6 +19,7 @@ import SecurityPage from './pages/SecurityPage';
 import EngineTwinPage from './pages/EngineTwinPage';
 import SimulatorPage from './pages/SimulatorPage';
 import LivingDigitalTwinPage from './pages/LivingDigitalTwinPage';
+import DriverPortalPage from './pages/DriverPortalPage';
 import CommandBar from './components/CommandBar';
 import { 
   calculateLimpHomeSpeed, 
@@ -28,7 +30,6 @@ import {
   DEFAULT_ROAD_COORDINATES, 
   interpolateRoadPosition 
 } from './utils/osrmRouting';
-
 function SimulationWrapper() {
   const { activeVehicle, activeDriver } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
@@ -39,6 +40,12 @@ function SimulationWrapper() {
   const [activeDTCs, setActiveDTCs] = useState(['P0300', 'P0171']);
   const [spiffsCount, setSpiffsCount] = useState(30);
   const [fuelPrice, setFuelPrice] = useState(95);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // AI Model States
   const [modelState, setModelState] = useState({
@@ -218,20 +225,22 @@ function SimulationWrapper() {
     const interval = setInterval(() => {
       setTelemetry((prev) => {
         let maxSpeed = 120;
-        let maxRpm = 5000;
-        let maxMaf = 18;
-        let fuelBurn = 0.015;
+        let maxRpm = 6800;
+        let maxMaf = 20.0;
+        let fuelBurn = 0.016;
 
-        if (vehicleProfile === 'hatchback') {
+        if (vehicleProfile === 'motorcycle') {
+          maxSpeed = 105;
+          fuelBurn = 0.007;
+        } else if (vehicleProfile === 'hatchback') {
           maxSpeed = 95;
-          maxRpm = 3200;
-          maxMaf = 12;
-          fuelBurn = 0.008;
+          fuelBurn = 0.009;
         } else if (vehicleProfile === 'suv') {
           maxSpeed = 110;
-          maxRpm = 4200;
-          maxMaf = 24;
-          fuelBurn = 0.028;
+          fuelBurn = 0.024;
+        } else if (vehicleProfile === 'truck' || vehicleProfile === 'pickup_lcv') {
+          maxSpeed = 90;
+          fuelBurn = 0.032;
         }
 
         if (aiAgentOptimized) {
@@ -455,6 +464,9 @@ function SimulationWrapper() {
           coolant: Math.max(0, prev.partsWear.coolant - coolantWearDelta)
         };
 
+        const co2Tailpipe = newActiveFuelUsed * 2.31;
+        const co2WellToWheel = co2Tailpipe * 1.18;
+
         return {
           speed: speedVal,
           rpm: rpmVal,
@@ -462,7 +474,13 @@ function SimulationWrapper() {
           maf: mafVal,
           fuel: newFuel,
           tripMileage: newTripMileage,
-          co2: newTripMileage * 0.192,
+          co2: Number(co2Tailpipe.toFixed(2)),
+          tailpipeCo2: Number(co2Tailpipe.toFixed(2)),
+          wellToWheelCo2: Number(co2WellToWheel.toFixed(2)),
+          mileageUnit: 'km/L',
+          engineTypeId: 'i4_petrol',
+          batterySocPct: null,
+          oilPressurePsi: Number((24.0 + (rpmVal / 6800) * 42.0).toFixed(1)),
           score: updatedScore,
           events: updatedEvents,
           voltage: newVoltage,
@@ -602,8 +620,10 @@ function SimulationWrapper() {
           vehicleProfile={vehicleProfile} 
           speedLimit={speedLimit} 
           setSpeedLimit={setSpeedLimit} 
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
-        <div className="relative flex-1 overflow-auto flex flex-col">
+        <div className="relative flex-1 overflow-x-hidden overflow-y-auto flex flex-col w-full min-w-0">
           {/* Top Command Bar */}
           <CommandBar
             isConnected={isConnected}
@@ -612,9 +632,18 @@ function SimulationWrapper() {
             aiThoughtLogs={aiThoughtLogs}
             activeDTCs={activeDTCs}
             securityState={securityState}
+            onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
           />
           
-          <Outlet />
+          <div className="flex-1 w-full min-w-0 pb-16 md:pb-0">
+            <Outlet />
+          </div>
+
+          {/* Native Mobile Bottom Navigation Bar */}
+          <MobileBottomNav 
+            onOpenMenu={() => setIsMobileMenuOpen(true)} 
+            totalAlerts={activeDTCs?.length || 0} 
+          />
         </div>
       </div>
     </SimulationContext.Provider>
@@ -709,6 +738,18 @@ function EngineTwinPageWrapper() {
   );
 }
 
+function DriverPortalPageWrapper() {
+  const sim = React.useContext(SimulationContext);
+  return (
+    <DriverPortalPage
+      telemetry={sim.telemetry}
+      trafficSignal={sim.trafficSignal}
+      isLimpModeActive={sim.isLimpModeActive}
+      onToggleLimpMode={() => sim.setIsLimpModeActive(!sim.isLimpModeActive)}
+    />
+  );
+}
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('velociq_logged_in') !== 'false');
 
@@ -733,6 +774,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
           <Route path="/dashboard" element={<TelemetryPageWrapper />} />
+          <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
           <Route path="/simulator" element={<SimulatorPageWrapper />} />
           <Route path="/navigation" element={<NavigationPageWrapper />} />
           <Route path="/analytics" element={<AnalyticsPageWrapper />} />

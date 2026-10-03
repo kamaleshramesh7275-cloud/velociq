@@ -61,6 +61,8 @@ export default function LivingDigitalTwinPage() {
     if (activeDriver?.id) setSelectedDriverId(activeDriver.id);
   }, [activeDriver]);
 
+  const fleetVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+
   // Compute live multi-variate states
   const predictiveMetrics = computePredictiveHealthMetrics(telemetry, selectedVehicleId);
   const optimizerData = computeAiDrivingOptimizer({

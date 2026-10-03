@@ -3,6 +3,8 @@ import { Card, SectionLabel } from './ui';
 import { WarningLight } from './ui/WarningLight';
 
 export default function FuelMileageCard({ telemetry }) {
+  const mileageUnit = 'km/L';
+
   const { speed = 0, maf = 9.4, fuel = 40.1, tripMileage = 0.0, co2 = 0.0 } = telemetry;
 
   // Real-world physical conversion:
@@ -20,21 +22,21 @@ export default function FuelMileageCard({ telemetry }) {
   const needleAngle = -60 + (clampedFuel / 100) * 120;
 
   return (
-    <Card className="p-6 flex flex-col justify-between h-full bg-white border border-line shadow-showroom">
+    <Card className="p-3.5 sm:p-6 flex flex-col justify-between h-full bg-white border border-line shadow-showroom overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line pb-3">
         <div>
           <SectionLabel label="ENERGY & CONSUMPTION" />
-          <h3 className="font-display text-lg font-bold text-text-hi mt-0.5 tracking-tight">
+          <h3 className="font-display text-base sm:text-lg font-bold text-text-hi mt-0.5 tracking-tight">
             Fuel & Range Telematics
           </h3>
         </div>
-        <WarningLight type="fuel" active={fuel < 15} color={fuel < 10 ? 'red' : 'amber'} size={24} />
+        <WarningLight type="fuel" active={fuel < 15} color={fuel < 10 ? 'red' : 'amber'} size={22} />
       </div>
 
       {/* Automotive Analog Fuel Gauge (E to F needle sweep) */}
-      <div className="my-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-bg-sunken/60 border border-line">
-        <svg width="200" height="95" viewBox="0 0 200 95" className="overflow-visible select-none">
+      <div className="my-3 sm:my-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-bg-sunken/60 border border-line">
+        <svg width="200" height="95" viewBox="0 0 200 95" className="max-w-full overflow-visible select-none">
           {/* Arc Background Track */}
           <path
             d="M 30 75 A 80 80 0 0 1 170 75"
@@ -97,7 +99,9 @@ export default function FuelMileageCard({ telemetry }) {
         <div className="flex items-center justify-between w-full px-4 text-xs font-mono mt-1">
           <span className="text-text-lo">Capacity:</span>
           <span className="font-bold text-text-hi tabular-nums text-sm">
-            {fuel.toFixed(1)}% <span className="text-xs font-normal text-text-lo">(~{Math.round(fuel * 0.55)} L)</span>
+            {fuel.toFixed(1)}% <span className="text-xs font-normal text-text-lo">
+              (~{Math.round(fuel * 0.55)} L)
+            </span>
           </span>
         </div>
       </div>
@@ -114,7 +118,7 @@ export default function FuelMileageCard({ telemetry }) {
                 {speed > 0 ? kmPerL : fuelRateLPerHour.toFixed(1)}
               </span>
               <span className="font-mono text-xs text-slate-700 font-semibold">
-                {speed > 0 ? 'km/L' : 'L/h (idle)'}
+                {speed > 0 ? mileageUnit : 'L/h (idle)'}
               </span>
             </div>
           </div>
@@ -143,13 +147,20 @@ export default function FuelMileageCard({ telemetry }) {
       <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs font-mono">
         <div>
           <span className="font-display text-[10px] uppercase font-bold text-slate-700 block">CARBON FOOTPRINT</span>
-          <span className="text-[11px] text-slate-700 font-medium">0.192 kg CO₂ / km factor</span>
+          <span className="text-[11px] text-slate-700 font-medium">
+            {isBev ? 'Zero Tailpipe Emissions' : `${(engineType.co2Factor || 2.31).toFixed(2)} kg CO₂ / ${engineType.mileageUnit?.split('/')[1] || 'L'}`}
+          </span>
         </div>
         <div className="text-right">
           <span className="font-mono text-base font-bold text-[#0B3D91] tabular-nums">
-            {co2.toFixed(3)}
+            {isBev ? '0.000' : co2.toFixed(3)}
           </span>
           <span className="text-slate-600 font-semibold ml-1">kg</span>
+          {isBev && (
+            <div className="text-[9px] font-mono text-slate-700">
+              WTW: {(telemetry.co2WellToWheel || (tripMileage * 0.088)).toFixed(3)} kg
+            </div>
+          )}
         </div>
       </div>
     </Card>

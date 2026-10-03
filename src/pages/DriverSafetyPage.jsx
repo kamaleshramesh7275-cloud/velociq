@@ -3,11 +3,14 @@ import { SimulationContext } from '../context/SimulationContext';
 import { Card, SectionLabel, SeverityBadge } from '../components/ui';
 import { AnalogDial } from '../components/ui/AnalogDial';
 import { PulseDot, ChevronDownIcon, ChevronRightIcon } from '../components/icons';
+import FleetLeaderboard from '../components/gamification/FleetLeaderboard';
+import DriverBadges from '../components/gamification/DriverBadges';
 
 export default function DriverSafetyPage() {
   const { safetyLog, telemetry } = React.useContext(SimulationContext);
   const score = Math.round(telemetry?.score ?? 94);
   const [whyExpanded, setWhyExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState('telemetry'); // 'telemetry' | 'leaderboard' | 'badges'
 
   // Tiny deduction ledger
   const deductions = [
@@ -49,10 +52,10 @@ export default function DriverSafetyPage() {
             <div>
               <SectionLabel label="DRIVER TELEMETRY & BEHAVIORAL SCORING" />
               <h1 className="text-2xl md:text-3xl font-heading font-bold text-[#0F172A] tracking-tight mt-1">
-                Driver Safety & Kinetic Telematics
+                Driver Safety & Performance Center
               </h1>
               <p className="mt-1 text-xs text-slate-700 font-medium">
-                Continuous 300ms impulse analysis, kinetic energy dissipation monitoring, and prioritized AI safety coaching.
+                Continuous 300ms impulse analysis, kinetic energy monitoring, fleet leaderboards, and gamified mastery.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -62,10 +65,62 @@ export default function DriverSafetyPage() {
               </span>
             </div>
           </div>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex items-center gap-2 mt-5 pt-3 border-t border-slate-100 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab('telemetry')}
+              className={`px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'telemetry'
+                  ? 'bg-[#0B3D91] text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <span>📊 Live Telematics & Deductions</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('leaderboard')}
+              className={`px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'leaderboard'
+                  ? 'bg-[#0B3D91] text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <span>🏆 Fleet Leaderboard & Tiers</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('badges')}
+              className={`px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'badges'
+                  ? 'bg-[#0B3D91] text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <span>🎖️ Badges & Micro-Coaching</span>
+            </button>
+          </div>
         </header>
 
-        {/* Top Split: Score Gauge + Deduction Ledger (Left) and AI Coaching (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Tab 1: Leaderboard */}
+        {activeTab === 'leaderboard' && (
+          <FleetLeaderboard />
+        )}
+
+        {/* Tab 2: Badges & Coaching */}
+        {activeTab === 'badges' && (
+          <DriverBadges />
+        )}
+
+        {/* Tab 3: Telemetry & Deductions */}
+        {activeTab === 'telemetry' && (
+          <>
+            {/* Top Split: Score Gauge + Deduction Ledger (Left) and AI Coaching (Right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Cols 1-7: Score Gauge & Deduction Ledger in Clean White Showroom Card */}
           <div className="lg:col-span-7">
@@ -221,6 +276,8 @@ export default function DriverSafetyPage() {
             </table>
           </div>
         </Card>
+        </>
+        )}
 
       </div>
     </div>

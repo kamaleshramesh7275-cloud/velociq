@@ -365,5 +365,153 @@ export function LayersIcon({ className = 'w-5 h-5' }) {
   );
 }
 
+// -----------------------------------------------------------------
+// POWERTRAIN & MULTI-ENGINE ARCHITECTURE ICONS
+// -----------------------------------------------------------------
+
+export function EngineI4Icon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="3" y="6" width="18" height="12" rx="2" strokeWidth="1.8" />
+      <line x1="7" y1="8" x2="7" y2="16" strokeWidth="2" strokeLinecap="round" />
+      <line x1="10.3" y1="8" x2="10.3" y2="16" strokeWidth="2" strokeLinecap="round" />
+      <line x1="13.7" y1="8" x2="13.7" y2="16" strokeWidth="2" strokeLinecap="round" />
+      <line x1="17" y1="8" x2="17" y2="16" strokeWidth="2" strokeLinecap="round" />
+      <path d="M6 3v3M18 3v3" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function EngineTurboIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="7" strokeWidth="1.8" />
+      <path d="M12 5a7 7 0 017 7h-7V5z" fill="currentColor" fillOpacity="0.2" />
+      <path d="M16 12a4 4 0 11-8 0 4 4 0 018 0z" strokeWidth="1.8" />
+      <path d="M19 12h3M2 12h3M12 2v3M12 19v3" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function EngineV6Icon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M4 5l6 14h4l6-14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="7" cy="8" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="8" r="1.5" fill="currentColor" />
+      <circle cx="8.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="15.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="10" cy="16" r="1.5" fill="currentColor" />
+      <circle cx="14" cy="16" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function EngineV8Icon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M3 4l7 16h4l7-16" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="7" y1="4" x2="17" y2="4" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="6" cy="7" r="1.2" fill="currentColor" />
+      <circle cx="18" cy="7" r="1.2" fill="currentColor" />
+      <circle cx="7.8" cy="11" r="1.2" fill="currentColor" />
+      <circle cx="16.2" cy="11" r="1.2" fill="currentColor" />
+      <circle cx="9.5" cy="15" r="1.2" fill="currentColor" />
+      <circle cx="14.5" cy="15" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function EngineBoxerIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="8" y="7" width="8" height="10" rx="1.5" strokeWidth="1.8" />
+      <path d="M8 9H3v6h5M16 9h5v6h-5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="2.2" strokeWidth="1.8" />
+      <line x1="5.5" y1="12" x2="8" y2="12" strokeWidth="2" />
+      <line x1="16" y1="12" x2="18.5" y2="12" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function EngineDieselIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="4" y="6" width="16" height="12" rx="2" strokeWidth="1.8" />
+      <path d="M8 6V3m8 3V3" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 12a3 3 0 006 0 3 3 0 00-6 0z" strokeWidth="1.8" />
+      <path d="M12 9v6" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="18" cy="12" r="1" fill="#047857" />
+    </svg>
+  );
+}
+
+export function EngineSingleIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="7" y="5" width="10" height="14" rx="2" strokeWidth="1.8" />
+      <line x1="5" y1="8" x2="19" y2="8" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="11" x2="19" y2="11" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="14" x2="19" y2="14" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function EngineCngIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="5" y="7" width="14" height="10" rx="5" strokeWidth="1.8" />
+      <path d="M19 12h2a1 1 0 001-1V9a1 1 0 00-1-1h-2" strokeWidth="1.8" />
+      <line x1="9" y1="10" x2="9" y2="14" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="12" y1="10" x2="12" y2="14" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="15" y1="10" x2="15" y2="14" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function EngineHybridIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="8" cy="12" r="5" strokeWidth="1.8" />
+      <circle cx="16" cy="12" r="5" strokeWidth="1.8" />
+      <path d="M12 9l-1.5 3h3L12 15" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function EngineBevIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="8" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3" strokeWidth="1.8" fill="currentColor" fillOpacity="0.15" />
+      <path d="M12 2v3m0 14v3M2 12h3m14 0h3" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M13 9l-2.5 3.5h2.5L11 15" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function BatteryBoltIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <rect x="2" y="6" width="18" height="12" rx="2" strokeWidth="1.8" />
+      <path d="M20 10h2v4h-2" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M11 9l-2 3h3l-1.5 3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function DpfIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <rect x="4" y="6" width="16" height="12" rx="3" strokeWidth="1.8" />
+      <line x1="8" y1="9" x2="8" y2="15" strokeWidth="1.5" strokeDasharray="1 1" />
+      <line x1="12" y1="9" x2="12" y2="15" strokeWidth="1.5" strokeDasharray="1 1" />
+      <line x1="16" y1="9" x2="16" y2="15" strokeWidth="1.5" strokeDasharray="1 1" />
+    </svg>
+  );
+}
+
+
 
 

@@ -96,12 +96,12 @@ export default function AeroSweetSpotRadar({
   };
 
   return (
-    <Card className="p-6 bg-white border border-line shadow-showroom">
+    <Card className="p-3.5 sm:p-6 bg-white border border-line shadow-showroom overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line pb-3 sm:pb-4 mb-3 sm:mb-4">
         <div>
           <SectionLabel label="AERODYNAMICS & BSFC PHYSICS" />
-          <h2 className="font-display text-xl font-bold text-text-hi mt-0.5 tracking-tight">
+          <h2 className="font-display text-lg sm:text-xl font-bold text-text-hi mt-0.5 tracking-tight">
             Speed vs. Mileage Efficiency Island
           </h2>
         </div>
@@ -115,18 +115,18 @@ export default function AeroSweetSpotRadar({
       </div>
 
       {/* Main Parabolic Efficiency Chart (Light Background & Grid) */}
-      <div className="rounded-2xl border border-line bg-bg-sunken/40 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+      <div className="rounded-2xl border border-line bg-bg-sunken/40 p-2 sm:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
           <div>
-            <span className="font-display text-sm font-bold uppercase tracking-wider text-text-hi">
+            <span className="font-display text-xs sm:text-sm font-bold uppercase tracking-wider text-text-hi block">
               Quadratic Aerodynamic Decay Curve (P_drag ∝ v³)
             </span>
-            <p className="font-mono text-[11px] text-text-mid mt-0.5">
+            <p className="font-mono text-[10px] sm:text-[11px] text-text-mid mt-0.5 leading-relaxed">
               Green band indicates optimal laminar window (55-65 km/h). Drag rises cubically past 80 km/h.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 text-xs mt-2 sm:mt-0 font-mono">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#0F9D6B]" />
               <span className="text-text-mid text-[11px]">Laminar Zone</span>
@@ -140,7 +140,7 @@ export default function AeroSweetSpotRadar({
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-52 sm:h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={curveData} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
               <defs>

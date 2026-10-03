@@ -28,7 +28,12 @@ import {
   Area
 } from 'recharts';
 
-export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC, onClearDTCs, activeDTCs: fleetDTCs = [] }) {
+export default function EngineTwinPage({ 
+  telemetry: fleetTelemetry, 
+  onTriggerDTC, 
+  onClearDTCs, 
+  activeDTCs: fleetDTCs = []
+}) {
   // Engine Control States
   const [rpm, setRpm] = useState(2400);
   const [throttlePct, setThrottlePct] = useState(25);
@@ -40,6 +45,19 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
 
   // Loading state for Three.js initialization
   const [isCanvasReady, setIsCanvasReady] = useState(false);
+
+  // Engine Technical Specifications (Unified Master Powertrain)
+  const engineSpecs = {
+    label: '2.0L Inline-4 DOHC 16V Twin-Cam Turbo',
+    shortLabel: '2.0L I4 Turbo',
+    displacement: '1998 cc',
+    compression: '10.2:1',
+    redlineRpm: 6800,
+    idleRpm: 900,
+    peakPower: '248 HP @ 5500 RPM',
+    peakTorque: '350 Nm @ 1800-4500 RPM',
+    firingOrder: '1-3-4-2',
+  };
 
   // Dyno State & Deep Diagnostics Drawer
   const [activeTab, setActiveTab] = useState('workspace'); // 'workspace', 'dyno', 'oscilloscope'
@@ -93,10 +111,10 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
         setWaveformHistory((wPrev) => {
           const point = {
             t: timeRef.current.toFixed(1),
-            cyl1: next.cylinderBalance[0].peakPressureBar,
-            cyl3: next.cylinderBalance[2].peakPressureBar,
-            oilPsi: next.telemetry.oilPressurePsi,
-            boost: next.telemetry.turboBoostPsi
+            cyl1: next.cylinderBalance?.[0]?.peakPressureBar || 50,
+            cyl3: next.cylinderBalance?.[2]?.peakPressureBar || 48,
+            oilPsi: next.telemetry.oilPressurePsi || 45,
+            boost: next.telemetry.turboBoostPsi || 0
           };
           const nextW = [...wPrev, point];
           return nextW.length > 25 ? nextW.slice(nextW.length - 25) : nextW;
@@ -122,17 +140,21 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
     setDynoProgress(0);
     setThrottlePct(100);
 
-    let currentRpm = 1000;
-    const sweepInterval = setInterval(() => {
-      currentRpm += 150;
-      setRpm(currentRpm);
-      setDynoProgress(Math.round(((currentRpm - 1000) / (6800 - 1000)) * 100));
+    const minRpm = engineSpecs.idleRpm;
+    const maxRpm = engineSpecs.redlineRpm;
+    let currentRpm = minRpm;
+    const stepRpm = Math.max(100, Math.round((maxRpm - minRpm) / 36));
 
-      if (currentRpm >= 6800) {
+    const sweepInterval = setInterval(() => {
+      currentRpm += stepRpm;
+      setRpm(currentRpm);
+      setDynoProgress(Math.min(100, Math.round(((currentRpm - minRpm) / (maxRpm - minRpm)) * 100)));
+
+      if (currentRpm >= maxRpm) {
         clearInterval(sweepInterval);
         setIsDynoRunning(false);
         setThrottlePct(20);
-        setRpm(1800);
+        setRpm(Math.round(minRpm * 1.8));
         setDynoData(generateDynoPowerCurve(activeScenario));
       }
     }, 80);
@@ -153,13 +175,12 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
   const crankAngle = Math.round(((rpm / 60) * 360 * timeRef.current) % 720);
   const pistonPosMm = (Math.cos(((rpm / 60) * 2 * Math.PI * timeRef.current)) * 45).toFixed(1);
 
-  // Fault scenarios for buttons
-  const faultOptions = [
-    { key: 'CYL_3_MISFIRE', label: 'Cyl 3 Misfire', desc: 'Ignition breakdown' },
-    { key: 'INTAKE_VACUUM_LEAK', label: 'Intake Leak', desc: 'Plenum gasket unmetered air' },
-    { key: 'OIL_STARVATION', label: 'Sensor Drift / Oil', desc: 'Pressure drops to 12 PSI' },
-    { key: 'THERMOSTAT_STUCK', label: 'Thermostat Stuck', desc: '118°C thermal runaway' }
-  ];
+  // Fault scenarios for the unified engine digital twin
+  const faultOptions = useMemo(() => {
+    return Object.entries(TWIN_FAULT_SCENARIOS)
+      .filter(([k]) => k !== 'NOMINAL')
+      .map(([k, s]) => ({ key: k, label: s.title || k }));
+  }, []);
 
   // Hotspots definitions
   const hotspots = [
@@ -199,14 +220,20 @@ export default function EngineTwinPage({ telemetry: fleetTelemetry, onTriggerDTC
       <header className="h-14 border-b border-line bg-white px-6 flex items-center justify-between shrink-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
           <SectionLabel label="DIGITAL TWIN / 3D CYBER-PHYSICAL" />
-          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-line">
-            <span className="text-xs font-mono font-semibold text-text-mid">2.0L Turbo DOHC TwinCore</span>
+          <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-line">
+            <span className="text-xs font-mono font-semibold text-text-mid">{engineSpecs.label}</span>
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
               diagnostics.healthIndex > 80 
                 ? 'bg-emerald-50 text-[#0F9D6B] border border-emerald-200' 
                 : 'bg-red-50 text-[#D7263D] border border-red-200 animate-pulse'
             }`}>
               {diagnostics.activeDTCs.length === 0 ? 'NOMINAL HEALTH' : `${diagnostics.activeDTCs.length} FAULT(S)`}
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200">
+            <span className="w-2 h-2 rounded-full bg-[#0B3D91] animate-pulse" />
+            <span className="font-mono text-xs font-bold text-[#0B3D91]">
+              1-3-4-2 DOHC Turbo Twin
             </span>
           </div>
         </div>

@@ -2,21 +2,21 @@ import React, { useState } from 'react';
 import { Card, SectionLabel, Toggle } from './ui';
 import { WrenchIcon, CheckCircleIcon } from './icons';
 
-const statusConfig = {
-  oil: { name: 'Engine Oil Life', label: 'Engine Oil', desc: 'Synthetic 5W-30 viscosity & lubricity index.' },
-  brakes: { name: 'Brake Pad Integrity', label: 'Brake Pads', desc: 'Ceramic friction compound remaining thickness.' },
-  battery: { name: 'Battery Health Index', label: 'Battery Health', desc: 'Electrochemical capacity & cranking state-of-health.' },
-  coolant: { name: 'Cooling System Quality', label: 'Cooling System', desc: 'Glycol concentration & corrosion inhibitor level.' }
-};
-
 export default function MaintenanceTracker({ 
   partsWear = {}, 
   predictedFailureDays = {}, 
   onServicePart, 
   maintenanceModel, 
   aiMechanicEnabled, 
-  setAiMechanicEnabled 
+  setAiMechanicEnabled
 }) {
+  const statusConfig = {
+    oil: { name: 'Engine Oil Life (Full Synthetic 5W-30)', label: 'Engine Oil', desc: 'Synthetic 5W-30 viscosity & lubricity index.' },
+    brakes: { name: 'Brake Pad Integrity', label: 'Brake Pads', desc: 'Ceramic friction compound remaining thickness.' },
+    battery: { name: '12V AGM Cranking Battery Health Index', label: 'Battery Health', desc: 'Electrochemical capacity & cranking state-of-health.' },
+    coolant: { name: 'Cooling System Quality (50/50 OAT Glycol)', label: 'Cooling System', desc: 'Glycol concentration & corrosion inhibitor level.' }
+  };
+
   const { trained, accuracy } = maintenanceModel || { trained: false, accuracy: 50 };
   const [servicingKey, setServicingKey] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -69,7 +69,9 @@ export default function MaintenanceTracker({
           <span className="text-base font-mono font-black text-[#0F172A] tabular-nums">
             {fillPercent}%
           </span>
-          <span className="text-[9px] font-mono uppercase text-slate-700 font-bold">Dipstick Lvl</span>
+          <span className="text-[9px] font-mono uppercase text-slate-700 font-bold">
+            {isBev ? 'Gearbox Lvl' : 'Dipstick Lvl'}
+          </span>
         </div>
       </div>
     );

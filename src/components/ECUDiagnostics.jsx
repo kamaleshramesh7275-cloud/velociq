@@ -29,7 +29,7 @@ export default function ECUDiagnostics({ activeDTCs = [], onClearDTCs, onTrigger
   };
 
   return (
-    <Card className="p-6 bg-white border border-line shadow-showroom flex flex-col justify-between">
+    <Card className="p-3.5 sm:p-6 bg-white border border-line shadow-showroom flex flex-col justify-between overflow-hidden">
       {/* Header */}
       <div>
         <div className="flex items-center justify-between border-b border-line pb-3 mb-4">

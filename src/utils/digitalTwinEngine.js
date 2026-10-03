@@ -9,6 +9,9 @@
  * 5. Closed-Loop Feedback Engine: Self-learning cycle state machine with iterative adaptation.
  */
 
+import { getEngineDigitalTwin } from './engineDigitalTwins.js';
+import { getEngineType } from '../config/engineTypes.js';
+
 // ==========================================
 // 1. VEHICLE DIGITAL TWIN BASELINES
 // ==========================================
@@ -204,25 +207,37 @@ export const VEHICLE_BASELINES = {
 // 2. PREDICTIVE VEHICLE HEALTH & ANOMALY ENGINE
 // ==========================================
 
-export function computePredictiveHealthMetrics(liveTelemetry, vehicleId = 'v1') {
+export function computePredictiveHealthMetrics(liveTelemetry, vehicleId = 'v1', engineTypeId = null) {
   const vehicle = VEHICLE_BASELINES[vehicleId] || VEHICLE_BASELINES.v1;
-  const baseline = vehicle.normalBaseline90d;
+  const activeEngineId = engineTypeId || vehicle.engineTypeId || 'i4_petrol';
+  const engineTwin = getEngineDigitalTwin(activeEngineId);
+  const engineType = getEngineType(activeEngineId);
+  const isBev = engineType.category === 'BEV';
+
+  // Use engine-specific 90-day baseline when available
+  const baseline = {
+    ...vehicle.normalBaseline90d,
+    ...(engineTwin.normalBaseline90d || {}),
+    fuelEfficiencyKmL: engineTwin.normalBaseline90d?.efficiency || vehicle.normalBaseline90d.fuelEfficiencyKmL,
+    efficiencyUnit: engineType.mileageUnit || 'km/L'
+  };
 
   // Real-time comparison against 90-day baseline
-  const currentKmL = liveTelemetry?.fuel ? parseFloat(liveTelemetry.fuel) : 15.6;
-  const currentCoolant = liveTelemetry?.coolant ? parseFloat(liveTelemetry.coolant) : 85.8;
-  const currentMaf = liveTelemetry?.maf ? parseFloat(liveTelemetry.maf) : 9.4;
+  const currentEff = isBev
+    ? (liveTelemetry?.kmPerKwh ? parseFloat(liveTelemetry.kmPerKwh) : (liveTelemetry?.fuel ? parseFloat(liveTelemetry.fuel) : 6.5))
+    : (liveTelemetry?.fuel ? parseFloat(liveTelemetry.fuel) : 15.6);
+  const currentCoolant = liveTelemetry?.coolant ? parseFloat(liveTelemetry.coolant) : (isBev ? 38.0 : 85.8);
+  const currentMaf = liveTelemetry?.maf ? parseFloat(liveTelemetry.maf) : (isBev ? 0.0 : 9.4);
 
   // Percentage deviations
-  const fuelEfficiencyDeltaPct = ((currentKmL - baseline.fuelEfficiencyKmL) / baseline.fuelEfficiencyKmL) * 100;
-  const coolantDeltaC = currentCoolant - baseline.avgCoolantTempC;
-  const mafDeltaPct = ((currentMaf - baseline.cruiseMafGs) / baseline.cruiseMafGs) * 100;
+  const fuelEfficiencyDeltaPct = ((currentEff - baseline.fuelEfficiencyKmL) / baseline.fuelEfficiencyKmL) * 100;
+  const coolantDeltaC = currentCoolant - (baseline.avgCoolantTempC || 86.0);
+  const mafDeltaPct = isBev ? 0 : ((currentMaf - (baseline.cruiseAirFlow || baseline.cruiseMafGs || 8.8)) / (baseline.cruiseAirFlow || baseline.cruiseMafGs || 8.8)) * 100;
 
   // Multivariate Anomaly Score (0 to 100%)
-  // Combines fuel efficiency deficit, thermal drift, and MAF airflow mismatch
   const fuelAnomalyComponent = Math.max(0, -fuelEfficiencyDeltaPct) * 2.2;
-  const coolantAnomalyComponent = Math.max(0, Math.abs(coolantDeltaC) - 3) * 4.5;
-  const mafAnomalyComponent = Math.max(0, Math.abs(mafDeltaPct) - 10) * 1.8;
+  const coolantAnomalyComponent = Math.max(0, Math.abs(coolantDeltaC) - (isBev ? 5 : 3)) * 4.5;
+  const mafAnomalyComponent = isBev ? 0 : Math.max(0, Math.abs(mafDeltaPct) - 10) * 1.8;
 
   const rawAnomalyScore = Math.min(98, Math.max(4, fuelAnomalyComponent + coolantAnomalyComponent + mafAnomalyComponent));
   const anomalyScore = Math.round(rawAnomalyScore * 10) / 10;
@@ -243,66 +258,51 @@ export function computePredictiveHealthMetrics(liveTelemetry, vehicleId = 'v1') 
 
   // Primary Health Alert Message
   const fuelDropFormatted = Math.abs(fuelEfficiencyDeltaPct).toFixed(1);
+  const efficiencyLabel = isBev ? 'Electrical efficiency (km/kWh)' : 'Fuel efficiency';
   const primaryAlert = {
-    title: 'Vehicle Health Alert',
+    title: `${engineType.shortLabel} Health Alert`,
     message: fuelEfficiencyDeltaPct < -5
-      ? `Fuel efficiency has decreased ${fuelDropFormatted}% compared with your 90-day baseline.`
+      ? `${efficiencyLabel} has decreased ${fuelDropFormatted}% compared with your 90-day baseline.`
       : `Powertrain operating within nominal ±${Math.abs(fuelEfficiencyDeltaPct).toFixed(1)}% of 90-day baseline.`,
     isAnomaly: fuelEfficiencyDeltaPct < -5,
     severity,
     anomalyScore,
   };
 
-  // Explainable AI (Factor Attribution)
-  // Explains what factors contributed to the fuel/thermal deviation
-  const factorAttributions = [
-    {
-      factor: 'O2 Sensor Thermal Drift',
-      contributionPct: 34,
-      impact: '+4.2% Fuel Penalty',
-      description: 'Pre-cat lambda reading lagging by 180ms during transient throttle tips',
-      risk: 'Medium'
-    },
-    {
-      factor: 'Tire Rolling Resistance / Pressure',
-      contributionPct: 31,
-      impact: '-3.8% Energy Loss',
-      description: 'Left-rear tire cold pressure reading 28.5 PSI vs 33.0 PSI target',
-      risk: 'Moderate'
-    },
-    {
-      factor: 'Coolant Thermostat Thermal Lag',
-      contributionPct: 35,
-      impact: '+4.4% Inefficient Choke Cycle',
-      description: 'Extended cold enrichment window taking 4.2 minutes longer than baseline',
-      risk: 'Medium-High'
-    }
+  // Explainable AI (Factor Attribution tailored to engine type)
+  const factorAttributions = engineTwin.xaiFactors || [
+    { factor: 'O2 Sensor Thermal Drift', contributionPct: 34, impact: '+4.2% Fuel Penalty', risk: 'Medium' },
+    { factor: 'Tire Rolling Resistance / Pressure', contributionPct: 31, impact: '-3.8% Energy Loss', risk: 'Moderate' },
+    { factor: 'Coolant Thermostat Thermal Lag', contributionPct: 35, impact: '+4.4% Inefficient Choke Cycle', risk: 'Medium-High' }
   ];
+
+  const wearRunways = engineTwin.wearRunways || vehicle.wearRunways;
 
   return {
     vehicle,
     baseline,
     currentMetrics: {
-      kmL: currentKmL,
+      kmL: currentEff,
       coolantC: currentCoolant,
       mafGs: currentMaf,
       fuelEfficiencyDeltaPct: Math.round(fuelEfficiencyDeltaPct * 10) / 10,
       coolantDeltaC: Math.round(coolantDeltaC * 10) / 10,
       mafDeltaPct: Math.round(mafDeltaPct * 10) / 10,
+      efficiencyUnit: baseline.efficiencyUnit
     },
     primaryAlert,
     anomalyScore,
     healthStatus,
     factorAttributions,
-    wearRunways: vehicle.wearRunways,
+    wearRunways,
     timeSeriesBaselineHistory: [
-      { day: 'Day 1', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL + 0.4, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Day 15', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL + 0.1, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Day 30', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL - 0.3, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Day 45', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL - 0.7, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Day 60', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL - 1.2, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Day 75', baseline: baseline.fuelEfficiencyKmL, observed: baseline.fuelEfficiencyKmL - 1.8, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
-      { day: 'Today', baseline: baseline.fuelEfficiencyKmL, observed: currentKmL, anomalyBand: baseline.fuelEfficiencyKmL - 1.8 },
+      { day: 'Day 1', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL + 0.4).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Day 15', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL + 0.1).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Day 30', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL - 0.3).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Day 45', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL - 0.7).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Day 60', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL - 1.2).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Day 75', baseline: baseline.fuelEfficiencyKmL, observed: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)), anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
+      { day: 'Today', baseline: baseline.fuelEfficiencyKmL, observed: currentEff, anomalyBand: Number((baseline.fuelEfficiencyKmL - 1.8).toFixed(1)) },
     ]
   };
 }
@@ -514,59 +514,69 @@ export function computeAiDrivingOptimizer({
   vehicleId = 'v1',
   driverId = 'd1',
   liveTelemetry = null,
-  whatIfSliders = { throttleSmoothing: 0, coastingBonus: 0, corneringSmoothing: 0 }
+  whatIfSliders = { throttleSmoothing: 0, coastingBonus: 0, corneringSmoothing: 0 },
+  engineTypeId = null
 }) {
   const vehicle = VEHICLE_BASELINES[vehicleId] || VEHICLE_BASELINES.v1;
   const driver = DRIVER_BEHAVIORAL_PROFILES[driverId] || DRIVER_BEHAVIORAL_PROFILES.d1;
+  const activeEngineId = engineTypeId || vehicle.engineTypeId || 'i4_petrol';
+  const engineType = getEngineType(activeEngineId);
+  const engineTwin = getEngineDigitalTwin(activeEngineId);
+  const isBev = engineType.category === 'BEV';
+  const isHybrid = engineType.category === 'HYBRID';
 
   // Driver metrics vs vehicle physics correlation
   const jerkDeltaPct = Math.round(((driver.behaviorMetrics.avgAccelerationJerk - driver.behaviorMetrics.baselineJerk) / driver.behaviorMetrics.baselineJerk) * 100);
 
-  // Personalized Today's Driving Insight (Matches the exact prompt example)
-  const todaysInsight = {
+  // Personalized Today's Driving Insight tailored to powertrain
+  let todaysInsight = {
     headline: "Today's Driving Insight",
     observation: jerkDeltaPct > 0 
       ? `Your average acceleration was ${jerkDeltaPct}% higher than your normal pattern.`
       : `Your acceleration smoothness improved by ${Math.abs(jerkDeltaPct)}% over your historical baseline.`,
     metrics: {
-      fuelEfficiencyImpact: jerkDeltaPct > 0 ? -7 : +4.5, // -7%
-      drivingSmoothnessImpact: jerkDeltaPct > 0 ? -12 : +8, // -12%
+      fuelEfficiencyImpact: jerkDeltaPct > 0 ? -7 : +4.5,
+      drivingSmoothnessImpact: jerkDeltaPct > 0 ? -12 : +8,
       vehicleStress: jerkDeltaPct > 0 ? 'increased' : 'reduced',
       vehicleStressPct: jerkDeltaPct > 0 ? +14 : -9,
     },
-    recommendation: 'Use smoother acceleration during the first 10 minutes of your trip.',
-    reasoning: `On the ${vehicle.name}, the turbocharger and cold-start enrichment curve consume 24% more fuel when throttle ramp rates exceed 1.6 m/s³. Smoothing acceleration protects cold cylinder liners and saves fuel.`
+    recommendation: isBev
+      ? 'Modulate regenerative one-pedal braking to recover up to 60% of kinetic momentum.'
+      : 'Use smoother acceleration during the first 10 minutes of your trip.',
+    reasoning: isBev
+      ? `On the ${engineType.label}, high jerk tip-ins trigger inverter current spikes that lower battery pack efficiency by 8%. Smooth pedal modulation maximizes regenerative capture.`
+      : `On the ${vehicle.name} with ${engineType.shortLabel}, rapid cold throttle ramp rates consume 24% more fuel. Smoothing acceleration protects cylinder liners and saves fuel.`
   };
 
   // 3 Primary Outcome Pillars
-  // Base values adjusted by What-If Tuning
-  const smoothBonus = whatIfSliders.throttleSmoothing * 0.15; // 0 to 15%
-  const coastBonus = whatIfSliders.coastingBonus * 0.12;       // 0 to 12%
-  const cornerBonus = whatIfSliders.corneringSmoothing * 0.08; // 0 to 8%
+  const smoothBonus = whatIfSliders.throttleSmoothing * 0.15;
+  const coastBonus = whatIfSliders.coastingBonus * 0.12;
+  const cornerBonus = whatIfSliders.corneringSmoothing * 0.08;
 
-  // Pillar 1: SAFETY (Driving Score, Risk mitigation)
+  // Pillar 1: SAFETY
   const baseSafetyScore = Math.round(
     (driver.skillRadar.reduce((acc, curr) => acc + curr.score, 0) / driver.skillRadar.length)
   );
   const safetyScore = Math.min(100, Math.round(baseSafetyScore + smoothBonus * 20 + cornerBonus * 15));
   const collisionRiskReductionPct = Math.round(18 + smoothBonus * 30 + cornerBonus * 20);
 
-  // Pillar 2: EFFICIENCY (Fuel saving & monetary economics)
-  const baselineKmL = vehicle.normalBaseline90d.fuelEfficiencyKmL;
-  const fuelSavingPct = Math.round((7.4 + smoothBonus * 12 + coastBonus * 14) * 10) / 10;
-  const projectedMonthlyLitersSaved = Math.round((34 + (fuelSavingPct - 7.4) * 4.2) * 10) / 10;
-  const fuelPricePerLiter = 1.25; // USD or 95 INR equivalent
-  const projectedMonthlySavingsUsd = Math.round(projectedMonthlyLitersSaved * fuelPricePerLiter);
-  const co2ReductionKg = Math.round(projectedMonthlyLitersSaved * 2.31);
+  // Pillar 2: EFFICIENCY
+  const baselineEff = engineTwin.normalBaseline90d?.efficiency || vehicle.normalBaseline90d.fuelEfficiencyKmL;
+  const effSavingPct = Math.round((7.4 + smoothBonus * 12 + coastBonus * 14) * 10) / 10;
+  const projectedMonthlyUnitsSaved = Math.round((34 + (effSavingPct - 7.4) * 4.2) * 10) / 10;
+  const unitPrice = engineType.defaultFuelPrice || 95;
+  const projectedMonthlySavingsUsd = Math.round(projectedMonthlyUnitsSaved * (unitPrice / 80)); // USD equivalent
+  const co2ReductionKg = Math.round(projectedMonthlyUnitsSaved * (isBev ? 0.71 : engineType.co2FactorKgPerUnit));
 
-  // Pillar 3: HEALTH (Maintenance prediction & component stress)
+  // Pillar 3: HEALTH
   const componentStressReductionPct = Math.round((14 + smoothBonus * 18 + coastBonus * 15) * 10) / 10;
-  const brakePadLifeExtensionDays = Math.round(32 + coastBonus * 45);
-  const oilThermalDegradationDelayDays = Math.round(21 + smoothBonus * 30);
+  const brakePadLifeExtensionDays = Math.round((isBev || isHybrid ? 65 : 32) + coastBonus * 45);
+  const oilThermalDegradationDelayDays = isBev ? 0 : Math.round(21 + smoothBonus * 30);
 
   return {
     vehicle,
     driver,
+    engineType,
     todaysInsight,
     pillars: {
       safety: {
@@ -576,46 +586,50 @@ export function computeAiDrivingOptimizer({
         status: safetyScore >= 90 ? 'Elite Safe' : safetyScore >= 75 ? 'Optimal' : 'Needs Polish'
       },
       efficiency: {
-        fuelSavingPct,
-        monthlyLitersSaved: projectedMonthlyLitersSaved,
+        fuelSavingPct: effSavingPct,
+        monthlyLitersSaved: projectedMonthlyUnitsSaved,
+        monthlyUnitsSaved: projectedMonthlyUnitsSaved,
         monthlySavingsUsd: projectedMonthlySavingsUsd,
         co2ReductionKg,
-        efficiencyKmPerL: Math.round((baselineKmL * (1 + fuelSavingPct / 100)) * 10) / 10
+        efficiencyKmPerL: Math.round((baselineEff * (1 + effSavingPct / 100)) * 10) / 10,
+        mileageUnit: engineType.mileageUnit
       },
       health: {
         stressReductionPct: componentStressReductionPct,
         brakePadExtensionDays: brakePadLifeExtensionDays,
         oilLifeExtensionDays: oilThermalDegradationDelayDays,
-        maintenanceRunwayStatus: 'Stress Buffer Active'
+        maintenanceRunwayStatus: isBev ? 'Battery Buffer Active' : 'Stress Buffer Active'
       }
     },
     actionCards: [
       {
         id: 'act-1',
-        title: 'Thermal Ramp Moderation',
-        category: 'Efficiency & Engine Life',
+        title: isBev ? 'Inverter Ramp Smoothing' : 'Thermal Ramp Moderation',
+        category: 'Efficiency & Powertrain Life',
         targetPillar: 'EFFICIENCY',
-        impactScore: '+4.8% Fuel Saved',
-        advice: `Keep ${driver.name.split(' ')[0]}'s cold-start throttle below 28% for the initial 3.5 km.`,
-        vehicleSpecific: `Reduces thermal shock on ${vehicle.name}'s turbo bearing seals.`
+        impactScore: isBev ? '+5.4% kWh Range' : '+4.8% Fuel Saved',
+        advice: isBev 
+          ? `Keep ${driver.name.split(' ')[0]}'s acceleration requests below 65 kW on urban stretches.`
+          : `Keep ${driver.name.split(' ')[0]}'s cold-start throttle below 28% for initial 3.5 km.`,
+        vehicleSpecific: isBev ? `Protects SiC gate drivers and mitigates cell heating in ${vehicle.name}.` : `Reduces thermal shock on ${engineType.shortLabel} bearing seals.`
       },
       {
         id: 'act-2',
-        title: 'Predictive Signal Coasting',
+        title: isBev ? 'Regen Kinetic Braking Wave' : 'Predictive Signal Coasting',
         category: 'Safety & Component Health',
         targetPillar: 'HEALTH',
-        impactScore: '+35 Days Brake Life',
-        advice: 'Release throttle 60 meters earlier when traffic density increases.',
-        vehicleSpecific: `Saves kinetic energy dissipation and prevents brake rotor glazing.`
+        impactScore: isBev ? '+65 Days Pad Life' : '+35 Days Brake Life',
+        advice: 'Release throttle early when approaching red signals to capture kinetic energy.',
+        vehicleSpecific: isBev ? `Converts braking into ~0.8 kWh battery regeneration.` : `Saves kinetic energy dissipation and prevents brake rotor glazing.`
       },
       {
         id: 'act-3',
         title: 'Aero Sweet-Spot Cruise Lock',
         category: 'Long-Distance Optimization',
         targetPillar: 'EFFICIENCY',
-        impactScore: '$28/mo Fuel Cost Cut',
-        advice: 'Engage cruise control at 82 km/h on expressways instead of 95 km/h bursts.',
-        vehicleSpecific: `Matches the aerodynamic low-drag envelope of ${vehicle.name}.`
+        impactScore: '$28/mo Energy Cut',
+        advice: `Engage cruise control at ${engineType.mileageParams?.sweetSpeedKmh || 68} km/h on expressways.`,
+        vehicleSpecific: `Matches the aerodynamic sweet-spot envelope of ${vehicle.name}.`
       }
     ]
   };
