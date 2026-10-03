@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, SectionLabel, Toggle } from './ui';
 import { WrenchIcon, CheckCircleIcon } from './icons';
+import { useFleet } from '../context/FleetContext';
+import { getEngineType } from '../config/engineTypes';
 
 export default function MaintenanceTracker({ 
   partsWear = {}, 
@@ -10,6 +12,11 @@ export default function MaintenanceTracker({
   aiMechanicEnabled, 
   setAiMechanicEnabled
 }) {
+  const fleet = useFleet ? useFleet() : null;
+  const activeVehicle = fleet?.activeVehicle;
+  const engineTypeId = activeVehicle?.engineTypeId || 'i4_petrol';
+  const engineType = getEngineType(engineTypeId);
+  const isBev = engineType?.category === 'BEV';
   const statusConfig = {
     oil: { name: 'Engine Oil Life (Full Synthetic 5W-30)', label: 'Engine Oil', desc: 'Synthetic 5W-30 viscosity & lubricity index.' },
     brakes: { name: 'Brake Pad Integrity', label: 'Brake Pads', desc: 'Ceramic friction compound remaining thickness.' },

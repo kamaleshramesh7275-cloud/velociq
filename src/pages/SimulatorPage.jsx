@@ -20,6 +20,7 @@ import {
   calculateKineticStopPenalty,
   VEHICLE_PHYSICS_PROFILES,
 } from '../utils/speedMileagePhysics';
+import { getEngineType } from '../config/engineTypes';
 import {
   Card,
   SectionLabel,
@@ -41,13 +42,8 @@ import { useFleet } from '../context/FleetContext';
 
 export default function SimulatorPage({ telemetry }) {
   const { activeVehicle } = useFleet();
-  const engineType = {
-    label: '2.0L Inline-4 DOHC 16V Turbo',
-    shortLabel: '2.0L I4 Turbo',
-    mileageUnit: 'km/L',
-    fuelType: 'petrol',
-    category: 'ICE_PETROL'
-  };
+  const currentEngineId = activeVehicle?.engineTypeId || 'i4_petrol';
+  const engineType = getEngineType(currentEngineId);
 
   // Baseline live state
   const liveSpeed = Math.round(telemetry?.speed || 60);
@@ -86,8 +82,9 @@ export default function SimulatorPage({ telemetry }) {
       windAngleDeg: headwindKmh >= 0 ? 0 : 180, // 0 = headwind, 180 = tailwind
       payloadKg,
       ambientTempC,
+      engineTypeId: currentEngineId,
     }),
-    [headwindKmh, payloadKg, ambientTempC]
+    [headwindKmh, payloadKg, ambientTempC, currentEngineId]
   );
 
   const profile = VEHICLE_PHYSICS_PROFILES[vehicleProfile] || VEHICLE_PHYSICS_PROFILES.sedan;
@@ -100,8 +97,8 @@ export default function SimulatorPage({ telemetry }) {
 
   // Baseline live comparison result
   const baselineResult = useMemo(() => {
-    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0 });
-  }, [liveSpeed, liveProfile]);
+    return calculateMileageAtSpeed(liveSpeed, liveProfile, { payloadKg: 75, windSpeedKmh: 0, engineTypeId: currentEngineId });
+  }, [liveSpeed, liveProfile, currentEngineId]);
 
   // Curve data points for dual-axis chart (Speed vs Mileage & Range)
   const curveData = useMemo(() => {
@@ -127,7 +124,7 @@ export default function SimulatorPage({ telemetry }) {
   const cruiseFuelLiters = tripDistanceKm / Math.max(1, simMileage);
   const massKg = profile?.massKg || 1400;
   const stopPenalty = useMemo(() => {
-    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg);
+    const single = calculateKineticStopPenalty(targetSpeed, 0, massKg, { engineTypeId: currentEngineId, fuelPrice });
     const extraFuelLiters = (single.fuelWastedLiters || 0) * stopEventsCount;
     const totalEnergyDissipatedKj = (single.energyKj || 0) * stopEventsCount;
     const totalCostPenalty = (single.costPenalty || 0) * stopEventsCount;
@@ -139,7 +136,7 @@ export default function SimulatorPage({ telemetry }) {
       costPenalty: totalCostPenalty,
       isRecovered: single.isRecovered
     };
-  }, [targetSpeed, massKg, stopEventsCount]);
+  }, [targetSpeed, massKg, stopEventsCount, currentEngineId, fuelPrice]);
 
   const totalFuelLiters = cruiseFuelLiters + (stopPenalty.extraFuelLiters || 0);
   const totalFuelCost = totalFuelLiters * fuelPrice;

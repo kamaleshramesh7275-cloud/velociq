@@ -10,6 +10,8 @@ import {
 } from './icons';
 import { Drawer, CommandPalette, SeverityBadge, StatusPill, WarningLight, RacingStripe } from './ui';
 import RoleSwitcher from './RoleSwitcher';
+import ThemeSwitcher from './ThemeSwitcher';
+import { useTheme } from '../context/ThemeContext';
 
 export default function CommandBar({
   isConnected,
@@ -18,8 +20,10 @@ export default function CommandBar({
   aiThoughtLogs = [],
   activeDTCs = [],
   securityState,
+  telemetry,
   onToggleMobileMenu,
 }) {
+  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { activeVehicle, activeDriver } = useFleet();
@@ -61,9 +65,13 @@ export default function CommandBar({
           </button>
 
           <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs min-w-0">
-            <span className="font-display font-black text-sm tracking-wider text-[#0B3D91] shrink-0">VELOCIQ</span>
+            <span className="font-display font-black text-sm tracking-wider shrink-0" style={{ color: theme.secondary || theme.primary }}>
+              VELOCIQ
+            </span>
             <span className="text-slate-300 font-bold hidden sm:inline">/</span>
-            <span className="text-[#0B3D91] font-bold hidden sm:inline">{currentCrumb.section}</span>
+            <span className="font-bold hidden sm:inline" style={{ color: theme.secondary || theme.primary }}>
+              {currentCrumb.section}
+            </span>
             <span className="text-slate-300 font-bold">/</span>
             <span className="text-slate-900 font-black tracking-wide truncate">
               {currentCrumb.page}
@@ -96,16 +104,35 @@ export default function CommandBar({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
+
+          {/* Quick Direct Link to 3D Digital World */}
+          <button
+            type="button"
+            onClick={() => navigate('/world')}
+            className="hidden lg:flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-3 py-1.5 font-mono text-xs text-cyan-800 font-bold hover:bg-cyan-500/20 hover:border-cyan-500 transition shadow-xs"
+            title="Open 3D Digital Twin City"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+            <span>3D CITY WORLD</span>
+          </button>
+          </button>
         </div>
 
         {/* Status Indicators & Action Chips */}
         <div className="flex items-center gap-3">
-          {/* BLE Hardware Stream Pill */}
-          <StatusPill
-            label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
-            status={isConnected ? 'active' : 'idle'}
-            pulse={isConnected}
-          />
+          {/* Real-World Digital Twin Stream Pill */}
+          {telemetry?.isRealWorldLive && (Date.now() - (telemetry?.lastRealWorldUpdate || 0) < 4000) ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800 font-mono text-xs font-bold shadow-xs animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]" />
+              <span>REAL-WORLD 60Hz LIVE</span>
+            </div>
+          ) : (
+            <StatusPill
+              label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
+              status={isConnected ? 'active' : 'idle'}
+              pulse={isConnected}
+            />
+          )}
 
           {/* SPIFFS Packet Queue */}
           {!isConnected && spiffsCount > 0 && (
@@ -133,6 +160,9 @@ export default function CommandBar({
             </svg>
             <span className="font-bold text-[11px]">AI AGENT</span>
           </div>
+
+          {/* Theme Color Switcher */}
+          <ThemeSwitcher />
 
           {/* Role Persona Switcher */}
           <RoleSwitcher compact />

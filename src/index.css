@@ -2,8 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root, [data-theme="hyper-cyan"] {
   color-scheme: light;
+  --theme-primary: #00D4FF;
+  --theme-secondary: #0B3D91;
+  --theme-glow: rgba(0, 212, 255, 0.45);
+  --theme-accent: #38BDF8;
+  --theme-card-border: rgba(0, 212, 255, 0.25);
+  --theme-badge-bg: rgba(0, 212, 255, 0.12);
+  --theme-badge-text: #0284C7;
+
+  --brand-blue: #0B3D91;
+  --brand-red: #D7263D;
+  --accent-green: #047857;
+  --accent-amber: #B45309;
+  --accent-sky: #0284C7;
+  
   --bg-base: #F4F6F9;
   --bg-surface: #FFFFFF;
   --bg-sunken: #EBEEF3;
@@ -13,18 +27,151 @@
   --text-hi: #0A0F1D;
   --text-mid: #1E293B;
   --text-lo: #334155;
-
-  --brand-blue: #0B3D91;
-  --brand-red: #D7263D;
-  --accent-green: #047857;
-  --accent-amber: #B45309;
-  --accent-sky: #0284C7;
-  
   --cluster-bg: #0A0F1C;
 
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: var(--bg-base);
   color: var(--text-hi);
+}
+
+/* 2. Obsidian Gold (Luxury Supercar) */
+[data-theme="obsidian-gold"] {
+  --theme-primary: #F59E0B;
+  --theme-secondary: #D97706;
+  --theme-glow: rgba(245, 158, 11, 0.45);
+  --theme-accent: #FBBF24;
+  --theme-card-border: rgba(245, 158, 11, 0.35);
+  --theme-badge-bg: rgba(245, 158, 11, 0.16);
+  --theme-badge-text: #B45309;
+
+  --brand-blue: #D97706;
+  --brand-red: #DC2626;
+  --accent-green: #059669;
+  --accent-amber: #F59E0B;
+  --accent-sky: #FBBF24;
+
+  --bg-base: #FAF8F5;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #F5EDE0;
+  --bg-raised: #FFFDF9;
+  --line: #E8DCCB;
+  --line-light: #F3ECE1;
+  --text-hi: #1C1917;
+  --text-mid: #292524;
+  --text-lo: #78716C;
+  --cluster-bg: #14120E;
+}
+
+/* 3. Emerald Velocity (Eco-Hybrid / Racing Green) */
+[data-theme="emerald-velocity"] {
+  --theme-primary: #10B981;
+  --theme-secondary: #047857;
+  --theme-glow: rgba(16, 185, 129, 0.45);
+  --theme-accent: #34D399;
+  --theme-card-border: rgba(16, 185, 129, 0.3);
+  --theme-badge-bg: rgba(16, 185, 129, 0.14);
+  --theme-badge-text: #047857;
+
+  --brand-blue: #047857;
+  --brand-red: #E11D48;
+  --accent-green: #10B981;
+  --accent-amber: #D97706;
+  --accent-sky: #0D9488;
+
+  --bg-base: #F0FDF4;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #DCFCE7;
+  --bg-raised: #F7FEFA;
+  --line: #BBF7D0;
+  --line-light: #DCFCE7;
+  --text-hi: #052E16;
+  --text-mid: #064E3B;
+  --text-lo: #15803D;
+  --cluster-bg: #061B12;
+}
+
+/* 4. Redline Crimson (Track Apex / Motorsport) */
+[data-theme="redline-crimson"] {
+  --theme-primary: #EF4444;
+  --theme-secondary: #B91C1C;
+  --theme-glow: rgba(239, 68, 68, 0.45);
+  --theme-accent: #F87171;
+  --theme-card-border: rgba(239, 68, 68, 0.35);
+  --theme-badge-bg: rgba(239, 68, 68, 0.14);
+  --theme-badge-text: #B91C1C;
+
+  --brand-blue: #B91C1C;
+  --brand-red: #EF4444;
+  --accent-green: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-sky: #FB7185;
+
+  --bg-base: #FEF2F2;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #FEE2E2;
+  --bg-raised: #FFF8F8;
+  --line: #FECACA;
+  --line-light: #FEE2E2;
+  --text-hi: #450A0A;
+  --text-mid: #7F1D1D;
+  --text-lo: #991B1B;
+  --cluster-bg: #1A0808;
+}
+
+/* 5. Synthwave Neon (Cyberpunk Night Runner) */
+[data-theme="synthwave-neon"] {
+  --theme-primary: #EC4899;
+  --theme-secondary: #8B5CF6;
+  --theme-glow: rgba(236, 72, 153, 0.45);
+  --theme-accent: #A855F7;
+  --theme-card-border: rgba(236, 72, 153, 0.35);
+  --theme-badge-bg: rgba(236, 72, 153, 0.16);
+  --theme-badge-text: #BE185D;
+
+  --brand-blue: #8B5CF6;
+  --brand-red: #F43F5E;
+  --accent-green: #06B6D4;
+  --accent-amber: #F59E0B;
+  --accent-sky: #EC4899;
+
+  --bg-base: #FAF5FF;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #F3E8FF;
+  --bg-raised: #FCF8FF;
+  --line: #E9D5FF;
+  --line-light: #F3E8FF;
+  --text-hi: #3B0764;
+  --text-mid: #581C87;
+  --text-lo: #7E22CE;
+  --cluster-bg: #160B28;
+}
+
+/* 6. Luminous Titanium (Aerospace Silver) */
+[data-theme="luminous-titanium"] {
+  --theme-primary: #38BDF8;
+  --theme-secondary: #475569;
+  --theme-glow: rgba(56, 189, 248, 0.35);
+  --theme-accent: #94A3B8;
+  --theme-card-border: rgba(148, 163, 184, 0.3);
+  --theme-badge-bg: rgba(56, 189, 248, 0.14);
+  --theme-badge-text: #0369A1;
+
+  --brand-blue: #334155;
+  --brand-red: #E11D48;
+  --accent-green: #059669;
+  --accent-amber: #D97706;
+  --accent-sky: #38BDF8;
+
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #EEF2F6;
+  --bg-raised: #FFFFFF;
+  --line: #CBD5E1;
+  --line-light: #E2E8F0;
+  --text-hi: #0F172A;
+  --text-mid: #1E293B;
+  --text-lo: #475569;
+  --cluster-bg: #0F172A;
 }
 
 body {
@@ -123,20 +270,82 @@ h1, h2, h3, h4, .font-display {
   opacity: 0.18;
 }
 
-/* 3. Subtle Carbon-fiber weave for dark cluster (max 10% dark surface) */
-.carbon-cluster {
-  background-color: #0A0F1C;
-  background-image: 
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%);
-  background-size: 8px 8px;
-  background-position: 0 0, 4px 4px;
+/* 3. Luminous Titanium Aerospace Binnacle (Replaces dark carbon) */
+.titanium-binnacle {
+  background: linear-gradient(145deg, #FFFFFF 0%, #F1F5F9 45%, #E2E8F0 100%);
+  border: 1px solid #CBD5E1;
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 6px 0 rgba(148, 163, 184, 0.25),
+    0 10px 30px -5px rgba(15, 23, 42, 0.08),
+    0 4px 12px -2px rgba(15, 23, 42, 0.05);
 }
 
-/* 4. Chrome bezel gradient */
+.titanium-binnacle-inner {
+  background: 
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.9) 0%, transparent 65%),
+    linear-gradient(180deg, #F8FAFC 0%, #EDF2F7 50%, #E2E8F0 100%);
+  border: 1px solid #E2E8F0;
+  box-shadow: 
+    inset 0 2px 4px 0 rgba(148, 163, 184, 0.2),
+    0 1px 2px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 4. Aerogel Frosted Glass Surface */
+.aerogel-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 
+    0 1px 3px 0 rgba(15, 23, 42, 0.04),
+    0 10px 25px -5px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+.aerogel-card-interactive {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 
+    0 1px 3px 0 rgba(15, 23, 42, 0.04),
+    0 10px 25px -5px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aerogel-card-interactive:hover {
+  background: #FFFFFF;
+  border-color: #93C5FD;
+  box-shadow: 
+    0 4px 6px -1px rgba(2, 132, 199, 0.06),
+    0 16px 36px -4px rgba(15, 23, 42, 0.09),
+    inset 0 1px 0 0 #FFFFFF;
+  transform: translateY(-2px);
+}
+
+/* 5. Inset Aerospace HUD Screen */
+.hud-screen-inset {
+  background: linear-gradient(180deg, #F1F5F9 0%, #E2E8F0 100%);
+  border: 1px solid #CBD5E1;
+  box-shadow: 
+    inset 0 2px 5px rgba(15, 23, 42, 0.08),
+    inset 0 1px 2px rgba(15, 23, 42, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 6. Precision Knurled Metal Trim */
+.knurled-border {
+  background-image: 
+    repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.35) 0, rgba(148, 163, 184, 0.35) 1px, transparent 0, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.35) 0, rgba(148, 163, 184, 0.35) 1px, transparent 0, transparent 4px);
+}
+
+/* 7. Chrome / Platinum Bezel Gradient */
 .chrome-bezel {
   border: 1px solid #CBD5E1;
-  background: linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 100%);
+  background: linear-gradient(145deg, #FFFFFF 0%, #F1F5F9 50%, #CBD5E1 100%);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 2px 5px rgba(15, 23, 42, 0.08);
 }
 
