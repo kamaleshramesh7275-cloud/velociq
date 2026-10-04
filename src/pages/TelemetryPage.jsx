@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TelemetryPanel from '../components/TelemetryPanel';
 import FuelMileageCard from '../components/FuelMileageCard';
-import AeroSweetSpotRadar from '../components/AeroSweetSpotRadar';
 import ECUDiagnostics from '../components/ECUDiagnostics';
 import AITerminalFeed from '../components/AITerminalFeed';
-import ChassisHeatmapDeck from '../components/ChassisHeatmapDeck';
 import { useFleet } from '../context/FleetContext';
 import { SectionLabel } from '../components/ui';
 import { PlateBadge } from '../components/ui/PlateBadge';
@@ -62,10 +60,10 @@ export default function TelemetryPage({
                   </span>
                 </div>
                 <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#0F172A] tracking-tight mt-1">
-                  Luminous Cockpit & Aero Dynamic Vector Engine
+                  Luminous Cockpit & Telematics Engine
                 </h1>
                 <p className="mt-1 font-mono text-xs text-slate-600 leading-relaxed max-w-2xl">
-                  Real-time 300ms CAN-bus streaming, 270° titanium-chronometer flight binnacle, and 3D isometric chassis tire pressure deck.
+                  Real-time 300ms CAN-bus streaming, 270° titanium-chronometer flight binnacle, and real-time ECU fault diagnostics.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
@@ -103,20 +101,7 @@ export default function TelemetryPage({
           </div>
         </div>
 
-        {/* Row 2: 3D Isometric Chassis & Dynamic Tire Deck */}
-        <ChassisHeatmapDeck
-          telemetry={telemetry}
-        />
-
-        {/* Row 3: Signature AeroSweetSpotRadar with Virtual Wind Tunnel */}
-        <AeroSweetSpotRadar
-          currentSpeed={telemetry.speed}
-          vehicleProfile={vehicleProfile}
-          weather={weather}
-          fuelPrice={fuelPrice}
-        />
-
-        {/* Row 4: Diagnostics with Real-Time CAN Waveform Oscilloscope & AI Terminal Feed */}
+        {/* Row 2: Diagnostics with Real-Time CAN Waveform Oscilloscope & AI Terminal Feed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           <ECUDiagnostics
             activeDTCs={activeDTCs}
