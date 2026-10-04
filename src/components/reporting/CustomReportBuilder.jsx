@@ -13,7 +13,7 @@ const ALL_AVAILABLE_COLUMNS = [
   { key: 'odometer', label: 'Odometer (km)', default: true },
   { key: 'safetyScore', label: 'Safety Index (/100)', default: true },
   { key: 'fuelEfficiency', label: 'Fuel / Aero Score (%)', default: false },
-  { key: 'lastDvirStatus', label: 'Last DVIR Walkaround', default: true },
+  { key: 'lastDvirStatus', label: 'OBD Pre-Trip Scan Status', default: true },
   { key: 'dotExpiry', label: 'DOT Inspection Expiry', default: false },
   { key: 'insuranceExpiry', label: 'Insurance Expiry', default: false }
 ];

@@ -40,12 +40,12 @@ const BADGE_DEFINITIONS = [
     accentColor: 'from-purple-500/20 to-purple-700/10 border-purple-400'
   },
   {
-    id: 'dvir_hawk',
-    title: 'Pre-Trip Hawk',
-    category: 'DOT Compliance',
-    icon: '📋',
-    description: 'Submitted 25 consecutive pre-trip DVIRs with complete 7-point safety check and certified signature.',
-    target: '25 certified checks',
+    id: 'obd_scan_hawk',
+    title: 'Pre-Flight Diagnostic Master',
+    category: 'OBD Readiness',
+    icon: '⚡',
+    description: 'Completed 25 consecutive pre-trip electronic OBD-II diagnostic scans with zero active MIL DTC faults.',
+    target: '25 clean scans',
     accentColor: 'from-cyan-500/20 to-cyan-700/10 border-cyan-400'
   },
   {
@@ -99,10 +99,10 @@ export default function DriverBadges() {
 
   // Synthetic unlocked map per driver
   const driverBadgeMap = {
-    'd1': { iron_brake: true, aero_whisperer: true, glosa_virtuoso: true, dvir_hawk: true },
+    'd1': { iron_brake: true, aero_whisperer: true, glosa_virtuoso: true, obd_scan_hawk: true },
     'd2': { iron_brake: true, aero_whisperer: false, limp_survivor: true, night_owl: true },
-    'd3': { iron_brake: true, aero_whisperer: true, glosa_virtuoso: true, limp_survivor: true, dvir_hawk: true, night_owl: true },
-    'd4': { dvir_hawk: true }
+    'd3': { iron_brake: true, aero_whisperer: true, glosa_virtuoso: true, limp_survivor: true, obd_scan_hawk: true, night_owl: true },
+    'd4': { obd_scan_hawk: true }
   };
 
   const unlockedSet = driverBadgeMap[selectedDriverId] || { iron_brake: true, glosa_virtuoso: true };

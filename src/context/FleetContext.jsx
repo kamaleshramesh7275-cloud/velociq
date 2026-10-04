@@ -283,12 +283,12 @@ export function FleetProvider({ children }) {
     }
   ]);
 
-  // Initial Sample DVIR Inspection Records
+  // Initial Sample Electronic OBD-II Pre-Trip Inspection Records
   const [inspections, setInspections] = useState([
     {
-      id: 'dvir-101',
+      id: 'obd-scan-101',
       timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
-      type: 'PRE_TRIP',
+      type: 'PRE_TRIP_OBD',
       vehicleId: 'v1',
       vehicleName: 'Alpha Cruiser',
       licensePlate: 'NY-482-XA',
@@ -296,23 +296,17 @@ export function FleetProvider({ children }) {
       driverName: 'Sarah Jenkins',
       odometer: 12450,
       overallStatus: 'PASSED',
-      results: {
-        brakes: { status: 'PASS', comment: '' },
-        tires: { status: 'PASS', comment: '' },
-        steering: { status: 'PASS', comment: '' },
-        lights: { status: 'PASS', comment: '' },
-        glass: { status: 'PASS', comment: '' },
-        fluids: { status: 'PASS', comment: '' },
-        safety: { status: 'PASS', comment: '' },
-      },
-      notes: 'All walkaround parameters nominal. Ready for morning corridor transit.',
-      signature: 'certified',
+      milStatus: 'OFF',
+      dtcCount: 0,
+      monitorsReady: '4/4 Complete',
+      batteryVoltage: 12.6,
+      notes: 'Mode 01 readiness complete. Zero active DTCs. High-voltage & 12V bus nominal.',
       certified: true
     },
     {
-      id: 'dvir-102',
+      id: 'obd-scan-102',
       timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
-      type: 'POST_TRIP',
+      type: 'PRE_TRIP_OBD',
       vehicleId: 'v2',
       vehicleName: 'Cargo Hauler',
       licensePlate: 'TX-910-BB',
@@ -320,17 +314,11 @@ export function FleetProvider({ children }) {
       driverName: 'Marcus Cole',
       odometer: 82000,
       overallStatus: 'MINOR_DEFECT',
-      results: {
-        brakes: { status: 'PASS', comment: '' },
-        tires: { status: 'PASS', comment: '' },
-        steering: { status: 'PASS', comment: '' },
-        lights: { status: 'MINOR', comment: 'Right rear clearance bulb intermittent' },
-        glass: { status: 'PASS', comment: '' },
-        fluids: { status: 'PASS', comment: '' },
-        safety: { status: 'PASS', comment: '' },
-      },
-      notes: 'Right clearance light replaced at terminal depot.',
-      signature: 'certified',
+      milStatus: 'OFF',
+      dtcCount: 1,
+      monitorsReady: '4/4 Complete',
+      batteryVoltage: 12.4,
+      notes: 'Pending DTC P0128 detected (Thermostat temperature threshold).',
       certified: true
     }
   ]);
@@ -385,43 +373,50 @@ export function FleetProvider({ children }) {
     setActiveVehicleId(vehicleId);
   };
 
-  // Submit a DVIR report with auto-grounding logic
-  const submitInspection = (vehicleId, report) => {
-    const isCritical = report.overallStatus === 'CRITICAL_DEFECT' || 
-      Object.values(report.results || {}).some(r => r?.status === 'CRITICAL');
-    
-    const calculatedStatus = isCritical 
-      ? 'CRITICAL_DEFECT' 
-      : Object.values(report.results || {}).some(r => r?.status === 'MINOR')
-        ? 'MINOR_DEFECT'
-        : 'PASSED';
+  // Execute an automated OBD-II pre-trip electronic scan
+  const runObdPreTripScan = (vehicleId, overrides = {}) => {
+    const v = vehicles.find(item => item.id === vehicleId);
+    const isCritical = overrides.overallStatus === 'CRITICAL_DEFECT' || overrides.criticalDefect;
+    const status = isCritical ? 'CRITICAL_DEFECT' : 'PASSED';
 
-    const newInspection = {
-      id: `dvir-${Date.now()}`,
+    const newScan = {
+      id: `obd-scan-${Date.now()}`,
       timestamp: new Date().toISOString(),
+      type: 'PRE_TRIP_OBD',
       vehicleId,
-      ...report,
-      overallStatus: calculatedStatus,
-      certified: true
+      vehicleName: v?.name || 'Fleet Asset',
+      licensePlate: v?.licensePlate || '',
+      odometer: v?.mileage || 0,
+      overallStatus: status,
+      milStatus: isCritical ? 'ON' : 'OFF',
+      dtcCount: isCritical ? 2 : 0,
+      monitorsReady: '4/4 Complete',
+      batteryVoltage: 12.6,
+      notes: isCritical 
+        ? 'DTCs detected during OBD pre-trip scan. Auto-grounded to maintenance.' 
+        : 'Automated OBD-II Mode $01 & $03 pre-flight scan nominal. All monitors ready.',
+      certified: true,
+      ...overrides
     };
 
-    setInspections(prev => [newInspection, ...prev]);
+    setInspections(prev => [newScan, ...prev]);
 
-    // If critical defect, ground vehicle to Maintenance automatically
-    setVehicles(prev => prev.map(v => {
-      if (v.id === vehicleId) {
+    setVehicles(prev => prev.map(item => {
+      if (item.id === vehicleId) {
         return {
-          ...v,
-          status: isCritical ? 'Maintenance' : v.status,
-          lastDvirStatus: calculatedStatus,
-          mileage: report.odometer && report.odometer > v.mileage ? report.odometer : v.mileage,
+          ...item,
+          status: isCritical ? 'Maintenance' : item.status,
+          lastDvirStatus: status,
+          lastObdScanStatus: status,
         };
       }
-      return v;
+      return item;
     }));
 
-    return newInspection;
+    return newScan;
   };
+
+  const submitInspection = runObdPreTripScan;
 
   // Update compliance document expiry date
   const updateDocumentExpiry = (entityType, entityId, docKey, newDate) => {
@@ -471,6 +466,7 @@ export function FleetProvider({ children }) {
       setVehicleStatus,
       monitorVehicle,
       submitInspection,
+      runObdPreTripScan,
       updateDocumentExpiry
     }}>
       {children}

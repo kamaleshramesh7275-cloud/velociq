@@ -57,7 +57,7 @@ export const ROLES = {
     label: 'Lead Maintenance Tech',
     badge: 'MAINTENANCE',
     color: '#D7263D',
-    description: 'Predictive component wear, DVIR inspection audit, 3D Engine Twin CAD, and OBD-II diagnostics.',
+    description: 'Predictive component wear, OBD-II pre-trip diagnostics, 3D Engine Twin CAD, and powertrain DTCs.',
     allowedRoutes: [
       '/dashboard',
       '/engine-twin',
@@ -70,7 +70,7 @@ export const ROLES = {
     label: 'Driver Portal (Field)',
     badge: 'DRIVER',
     color: '#1E88E5',
-    description: 'Streamlined mobile cockpit: active route, personal safety score, pre-trip DVIR inspection, and SOS.',
+    description: 'Streamlined mobile cockpit: active route, personal safety score, pre-trip electronic OBD scan, and SOS.',
     allowedRoutes: [
       '/driver-portal',
       '/dashboard',

@@ -1,69 +1,47 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
 import { useFleet } from '../context/FleetContext';
 
-export default function ChassisHeatmapDeck({ 
-  telemetry = {},
-  sportMode = false,
-  activeAero = false 
-}) {
+export default function ChassisHeatmapDeck({ telemetry = {} }) {
   const { activeVehicle } = useFleet?.() || {};
   const [viewMode, setViewMode] = useState('isometric'); // 'isometric' | 'topdown'
   const [pressureUnit, setPressureUnit] = useState('bar'); // 'bar' | 'psi'
 
   const { speed = 55 } = telemetry;
 
-  // Dynamic simulation of 4-wheel tire physics based on speed and load
+  // Real-time micro-fluctuation of tire pressures
   const [tires, setTires] = useState({
-    fl: { bar: 2.32, tempC: 42.5, wear: 94, brakeGlow: 28 },
-    fr: { bar: 2.34, tempC: 43.1, wear: 93, brakeGlow: 29 },
-    rl: { bar: 2.48, tempC: 39.8, wear: 96, brakeGlow: 22 },
-    rr: { bar: 2.50, tempC: 40.2, wear: 95, brakeGlow: 23 },
+    fl: { bar: 2.32, wear: 94 },
+    fr: { bar: 2.34, wear: 93 },
+    rl: { bar: 2.48, wear: 96 },
+    rr: { bar: 2.50, wear: 95 },
   });
 
   useEffect(() => {
-    // Real-time micro-fluctuation of tire pressures & heat
     const interval = setInterval(() => {
       const speedFactor = (speed / 140) * 8;
-      const sportFactor = sportMode ? 4 : 0;
       setTires({
         fl: { 
           bar: Number((2.30 + Math.sin(Date.now() / 3000) * 0.04 + speedFactor * 0.01).toFixed(2)), 
-          tempC: Number((41.0 + speedFactor + sportFactor + Math.sin(Date.now() / 4000) * 1.2).toFixed(1)),
-          wear: 94,
-          brakeGlow: Math.min(100, Math.round(20 + speedFactor * 4))
+          wear: 94
         },
         fr: { 
           bar: Number((2.32 + Math.cos(Date.now() / 3200) * 0.04 + speedFactor * 0.01).toFixed(2)), 
-          tempC: Number((41.5 + speedFactor + sportFactor + Math.cos(Date.now() / 4200) * 1.1).toFixed(1)),
-          wear: 93,
-          brakeGlow: Math.min(100, Math.round(22 + speedFactor * 4))
+          wear: 93
         },
         rl: { 
           bar: Number((2.46 + Math.sin(Date.now() / 3500) * 0.03 + speedFactor * 0.008).toFixed(2)), 
-          tempC: Number((38.5 + speedFactor * 0.8 + sportFactor + Math.sin(Date.now() / 3800) * 0.9).toFixed(1)),
-          wear: 96,
-          brakeGlow: Math.min(100, Math.round(15 + speedFactor * 3))
+          wear: 96
         },
         rr: { 
           bar: Number((2.48 + Math.cos(Date.now() / 3400) * 0.03 + speedFactor * 0.008).toFixed(2)), 
-          tempC: Number((39.0 + speedFactor * 0.8 + sportFactor + Math.cos(Date.now() / 4100) * 1.0).toFixed(1)),
-          wear: 95,
-          brakeGlow: Math.min(100, Math.round(16 + speedFactor * 3))
+          wear: 95
         },
       });
     }, 400);
 
     return () => clearInterval(interval);
-  }, [speed, sportMode]);
-
-  // Helper for thermal color
-  const getThermalColor = (temp) => {
-    if (temp < 38) return '#0284C7'; // Cool cyan
-    if (temp <= 48) return '#059669'; // Optimal emerald
-    if (temp <= 58) return '#D97706'; // Warm amber
-    return '#E11D48'; // High heat ruby
-  };
+  }, [speed]);
 
   const formatPressure = (barVal) => {
     if (pressureUnit === 'psi') {
@@ -71,10 +49,6 @@ export default function ChassisHeatmapDeck({
     }
     return `${barVal.toFixed(2)} bar`;
   };
-
-  // Suspension load distribution calculation
-  const frontLoadPct = useMemo(() => Math.round(52 + Math.sin(speed / 20) * 2), [speed]);
-  const rearLoadPct = 100 - frontLoadPct;
 
   return (
     <Card className="p-4 sm:p-6 aerogel-card border border-slate-200/90 shadow-xl overflow-hidden relative">
@@ -101,7 +75,7 @@ export default function ChassisHeatmapDeck({
               </span>
             </div>
             <h3 className="font-display text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-              3D Isometric Chassis & Dynamic Tire Heatmap
+              3D Isometric Chassis & Dynamic Tire Pressures
             </h3>
           </div>
         </div>
@@ -149,11 +123,8 @@ export default function ChassisHeatmapDeck({
           <div className="p-3.5 rounded-2xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-mono text-xs font-black text-slate-900">FRONT LEFT (FL)</span>
-              <span 
-                className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${getThermalColor(tires.fl.tempC)}18`, color: getThermalColor(tires.fl.tempC) }}
-              >
-                {tires.fl.tempC}°C
+              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                ACTIVE
               </span>
             </div>
             <div className="flex items-baseline justify-between mt-1">
@@ -162,16 +133,9 @@ export default function ChassisHeatmapDeck({
               </span>
               <span className="font-mono text-[10px] text-emerald-600 font-bold">NOMINAL</span>
             </div>
-            {/* Thermal Indicator Bar */}
-            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
-              <div 
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${(tires.fl.tempC / 80) * 100}%`, backgroundColor: getThermalColor(tires.fl.tempC) }}
-              />
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
-              <span>Brake Heat: {tires.fl.brakeGlow}%</span>
-              <span>Wear: {tires.fl.wear}%</span>
+            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-2 pt-1 border-t border-slate-100">
+              <span>Tire Status: Good</span>
+              <span>Wear Index: {tires.fl.wear}%</span>
             </div>
           </div>
 
@@ -179,11 +143,8 @@ export default function ChassisHeatmapDeck({
           <div className="p-3.5 rounded-2xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-mono text-xs font-black text-slate-900">REAR LEFT (RL)</span>
-              <span 
-                className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${getThermalColor(tires.rl.tempC)}18`, color: getThermalColor(tires.rl.tempC) }}
-              >
-                {tires.rl.tempC}°C
+              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                ACTIVE
               </span>
             </div>
             <div className="flex items-baseline justify-between mt-1">
@@ -192,15 +153,9 @@ export default function ChassisHeatmapDeck({
               </span>
               <span className="font-mono text-[10px] text-emerald-600 font-bold">NOMINAL</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
-              <div 
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${(tires.rl.tempC / 80) * 100}%`, backgroundColor: getThermalColor(tires.rl.tempC) }}
-              />
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
-              <span>Brake Heat: {tires.rl.brakeGlow}%</span>
-              <span>Wear: {tires.rl.wear}%</span>
+            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-2 pt-1 border-t border-slate-100">
+              <span>Tire Status: Good</span>
+              <span>Wear Index: {tires.rl.wear}%</span>
             </div>
           </div>
         </div>
@@ -225,26 +180,11 @@ export default function ChassisHeatmapDeck({
           {/* SVG 3D Isometric Wireframe Hypercar Projection */}
           <svg viewBox="0 0 500 280" className="w-full h-64 max-w-lg select-none relative z-10 drop-shadow-md">
             <defs>
-              {/* Radial Thermal Heatmap Gradient for Tires */}
-              <radialGradient id="flHeatGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={getThermalColor(tires.fl.tempC)} stopOpacity="0.9" />
-                <stop offset="65%" stopColor={getThermalColor(tires.fl.tempC)} stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.8" />
-              </radialGradient>
-              <radialGradient id="frHeatGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={getThermalColor(tires.fr.tempC)} stopOpacity="0.9" />
-                <stop offset="65%" stopColor={getThermalColor(tires.fr.tempC)} stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.8" />
-              </radialGradient>
-              <radialGradient id="rlHeatGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={getThermalColor(tires.rl.tempC)} stopOpacity="0.9" />
-                <stop offset="65%" stopColor={getThermalColor(tires.rl.tempC)} stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.8" />
-              </radialGradient>
-              <radialGradient id="rrHeatGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={getThermalColor(tires.rr.tempC)} stopOpacity="0.9" />
-                <stop offset="65%" stopColor={getThermalColor(tires.rr.tempC)} stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.8" />
+              {/* Neutral Rim Gradient */}
+              <radialGradient id="wheelRimsGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.8" />
+                <stop offset="70%" stopColor="#0B3D91" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#0F172A" stopOpacity="0.9" />
               </radialGradient>
 
               {/* Aero Streamline Gradient */}
@@ -296,26 +236,23 @@ export default function ChassisHeatmapDeck({
                 strokeWidth="1.8"
               />
 
-              {/* Rear Deck & Active Wing */}
+              {/* Rear Deck */}
               <path
                 d="M 290,165 C 320,160 340,165 365,178 L 365,195 C 330,195 310,190 290,195 Z"
                 fill="#F8FAFC"
                 stroke="#64748B"
                 strokeWidth="1.8"
               />
-              {activeAero && (
-                <rect x="330" y="150" width="38" height="6" rx="2" fill="#E11D48" stroke="#FFFFFF" strokeWidth="1" className="animate-pulse" />
-              )}
 
               {/* Center Kinetic Mass Beacon */}
               <circle cx="210" cy="155" r="5" fill="#0B3D91" />
               <circle cx="210" cy="155" r="12" fill="none" stroke="#0B3D91" strokeWidth="1" strokeDasharray="3 3" className="animate-spin" />
             </g>
 
-            {/* 4-Wheel Heatmap Rotors */}
+            {/* 4-Wheel Rotors */}
             {/* FL Wheel */}
             <g transform="translate(130, 185)">
-              <ellipse cx="0" cy="0" rx="20" ry="12" fill="url(#flHeatGrad)" stroke="#334155" strokeWidth="2.5" />
+              <ellipse cx="0" cy="0" rx="20" ry="12" fill="url(#wheelRimsGrad)" stroke="#334155" strokeWidth="2.5" />
               <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
               <text x="0" y="18" textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono" fontWeight="700" fill="#0F172A">
                 FL
@@ -324,7 +261,7 @@ export default function ChassisHeatmapDeck({
 
             {/* FR Wheel */}
             <g transform="translate(195, 140)">
-              <ellipse cx="0" cy="0" rx="17" ry="10" fill="url(#frHeatGrad)" stroke="#475569" strokeWidth="2" opacity="0.9" />
+              <ellipse cx="0" cy="0" rx="17" ry="10" fill="url(#wheelRimsGrad)" stroke="#475569" strokeWidth="2" opacity="0.9" />
               <circle cx="0" cy="0" r="3" fill="#FFFFFF" />
               <text x="0" y="-12" textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono" fontWeight="700" fill="#0F172A">
                 FR
@@ -333,7 +270,7 @@ export default function ChassisHeatmapDeck({
 
             {/* RL Wheel */}
             <g transform="translate(340, 192)">
-              <ellipse cx="0" cy="0" rx="22" ry="13" fill="url(#rlHeatGrad)" stroke="#334155" strokeWidth="2.5" />
+              <ellipse cx="0" cy="0" rx="22" ry="13" fill="url(#wheelRimsGrad)" stroke="#334155" strokeWidth="2.5" />
               <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
               <text x="0" y="20" textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono" fontWeight="700" fill="#0F172A">
                 RL
@@ -342,27 +279,13 @@ export default function ChassisHeatmapDeck({
 
             {/* RR Wheel */}
             <g transform="translate(390, 148)">
-              <ellipse cx="0" cy="0" rx="18" ry="11" fill="url(#rrHeatGrad)" stroke="#475569" strokeWidth="2" opacity="0.9" />
+              <ellipse cx="0" cy="0" rx="18" ry="11" fill="url(#wheelRimsGrad)" stroke="#475569" strokeWidth="2" opacity="0.9" />
               <circle cx="0" cy="0" r="3" fill="#FFFFFF" />
               <text x="0" y="-12" textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono" fontWeight="700" fill="#0F172A">
                 RR
               </text>
             </g>
           </svg>
-
-          {/* Under-Chassis Real-Time Load Balance Strip */}
-          <div className="flex items-center gap-6 mt-1 px-4 py-1.5 rounded-full bg-white/90 border border-slate-200 shadow-2xs text-xs font-mono">
-            <span className="text-slate-600 font-bold">
-              FRONT AXLE: <strong className="text-[#0B3D91]">{frontLoadPct}%</strong>
-            </span>
-            <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden flex">
-              <div className="bg-[#0B3D91] h-full" style={{ width: `${frontLoadPct}%` }} />
-              <div className="bg-[#059669] h-full" style={{ width: `${rearLoadPct}%` }} />
-            </div>
-            <span className="text-slate-600 font-bold">
-              REAR AXLE: <strong className="text-[#059669]">{rearLoadPct}%</strong>
-            </span>
-          </div>
         </div>
 
         {/* Right Side Telemetry: Rear Axle (Cols 10-12) */}
@@ -371,11 +294,8 @@ export default function ChassisHeatmapDeck({
           <div className="p-3.5 rounded-2xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-mono text-xs font-black text-slate-900">FRONT RIGHT (FR)</span>
-              <span 
-                className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${getThermalColor(tires.fr.tempC)}18`, color: getThermalColor(tires.fr.tempC) }}
-              >
-                {tires.fr.tempC}°C
+              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                ACTIVE
               </span>
             </div>
             <div className="flex items-baseline justify-between mt-1">
@@ -384,15 +304,9 @@ export default function ChassisHeatmapDeck({
               </span>
               <span className="font-mono text-[10px] text-emerald-600 font-bold">NOMINAL</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
-              <div 
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${(tires.fr.tempC / 80) * 100}%`, backgroundColor: getThermalColor(tires.fr.tempC) }}
-              />
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
-              <span>Brake Heat: {tires.fr.brakeGlow}%</span>
-              <span>Wear: {tires.fr.wear}%</span>
+            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-2 pt-1 border-t border-slate-100">
+              <span>Tire Status: Good</span>
+              <span>Wear Index: {tires.fr.wear}%</span>
             </div>
           </div>
 
@@ -400,11 +314,8 @@ export default function ChassisHeatmapDeck({
           <div className="p-3.5 rounded-2xl bg-white/95 border border-slate-200 shadow-xs hover:border-blue-300 transition">
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-mono text-xs font-black text-slate-900">REAR RIGHT (RR)</span>
-              <span 
-                className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${getThermalColor(tires.rr.tempC)}18`, color: getThermalColor(tires.rr.tempC) }}
-              >
-                {tires.rr.tempC}°C
+              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                ACTIVE
               </span>
             </div>
             <div className="flex items-baseline justify-between mt-1">
@@ -413,15 +324,9 @@ export default function ChassisHeatmapDeck({
               </span>
               <span className="font-mono text-[10px] text-emerald-600 font-bold">NOMINAL</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
-              <div 
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${(tires.rr.tempC / 80) * 100}%`, backgroundColor: getThermalColor(tires.rr.tempC) }}
-              />
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
-              <span>Brake Heat: {tires.rr.brakeGlow}%</span>
-              <span>Wear: {tires.rr.wear}%</span>
+            <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-2 pt-1 border-t border-slate-100">
+              <span>Tire Status: Good</span>
+              <span>Wear Index: {tires.rr.wear}%</span>
             </div>
           </div>
         </div>
@@ -429,3 +334,4 @@ export default function ChassisHeatmapDeck({
     </Card>
   );
 }
+

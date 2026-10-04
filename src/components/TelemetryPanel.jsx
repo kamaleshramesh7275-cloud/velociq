@@ -47,6 +47,21 @@ export default function TelemetryPanel({
   // Approximate gear from speed
   const currentGear = speed === 0 ? 'P' : speed < 25 ? 'D1' : speed < 45 ? 'D2' : speed < 65 ? 'D3' : speed < 85 ? 'D4' : 'D5';
 
+  // Real Longitudinal G-force derived from OBD speed differentiation (dv/dt)
+  const prevSpeedRef = React.useRef(speed);
+  const prevTimeRef = React.useRef(Date.now());
+  const [longG, setLongG] = React.useState(0);
+
+  React.useEffect(() => {
+    const now = Date.now();
+    const dt = Math.max(0.1, (now - prevTimeRef.current) / 1000);
+    const dvMs = ((speed - prevSpeedRef.current) * 1000) / 3600;
+    const gVal = dvMs / (dt * 9.80665);
+    setLongG(Number(Math.max(-1.5, Math.min(1.5, gVal)).toFixed(2)));
+    prevSpeedRef.current = speed;
+    prevTimeRef.current = now;
+  }, [speed]);
+
   const [isSmallScreen, setIsSmallScreen] = React.useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
   React.useEffect(() => {
     const handleResize = () => setIsSmallScreen(window.innerWidth < 640);
@@ -142,26 +157,42 @@ export default function TelemetryPanel({
               </div>
             </div>
 
-            {/* Dynamic Lateral G-Force Bubble Visualizer */}
+            {/* Real Longitudinal G-Force Impulse Gauge (OBD-Derived via dv/dt) */}
             <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 shadow-xs w-full max-w-[140px]">
               <span className="font-mono text-[8px] uppercase tracking-wider text-slate-500 font-bold mb-1">
-                G-VECTOR BALL
+                LONGITUDINAL G (Gx)
               </span>
-              <div className="relative w-14 h-14 rounded-full border border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
-                {/* Crosshairs */}
-                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-slate-300" />
-                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-slate-300" />
-                <div className="absolute w-8 h-8 rounded-full border border-dashed border-slate-300" />
-                {/* Dynamic Inertial Dot based on speed/turn simulation */}
-                <div 
-                  className="w-3.5 h-3.5 rounded-full bg-[#0B3D91] shadow-md border-2 border-white transition-all duration-300"
-                  style={{
-                    transform: `translate(${(Math.sin(speed / 10) * 12).toFixed(1)}px, ${(Math.cos(speed / 15) * 8).toFixed(1)}px)`
-                  }}
-                />
+              <div className="flex items-center gap-1.5 my-1">
+                <span className={`font-mono text-base font-black tabular-nums ${
+                  longG > 0.05 ? 'text-emerald-600' : longG < -0.05 ? 'text-rose-600' : 'text-slate-700'
+                }`}>
+                  {longG >= 0 ? `+${longG.toFixed(2)}` : longG.toFixed(2)} G
+                </span>
               </div>
-              <span className="font-mono text-[9px] text-slate-700 font-bold mt-1">
-                {(0.02 + (speed / 140) * 0.28).toFixed(2)} G LAT
+              {/* Bi-directional horizontal impulse meter */}
+              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden relative border border-slate-200">
+                {/* Center zero mark */}
+                <div className="absolute top-0 bottom-0 left-1/2 w-[1px] bg-slate-400 z-10" />
+                {longG >= 0 ? (
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-200 rounded-r-full"
+                    style={{ 
+                      marginLeft: '50%',
+                      width: `${Math.min(50, (longG / 0.6) * 50)}%` 
+                    }}
+                  />
+                ) : (
+                  <div 
+                    className="h-full bg-rose-500 transition-all duration-200 rounded-l-full ml-auto"
+                    style={{ 
+                      marginRight: '50%',
+                      width: `${Math.min(50, (Math.abs(longG) / 0.6) * 50)}%` 
+                    }}
+                  />
+                )}
+              </div>
+              <span className="font-mono text-[8px] uppercase font-bold text-slate-500 mt-1">
+                {longG > 0.15 ? 'ACCELERATING' : longG < -0.2 ? 'DECELERATING' : 'STEADY CRUISE'}
               </span>
             </div>
 

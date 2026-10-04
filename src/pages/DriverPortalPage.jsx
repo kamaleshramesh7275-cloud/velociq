@@ -5,7 +5,6 @@ import { AnalogDial } from '../components/ui/AnalogDial';
 import { CarSilhouette } from '../components/ui/CarSilhouette';
 import { WarningLight } from '../components/ui/WarningLight';
 import { PulseDot, SpeedArcLogo } from '../components/icons';
-import DVIRInspectionModal from '../components/dvir/DVIRInspectionModal';
 
 export default function DriverPortalPage({
   telemetry = {},
@@ -13,9 +12,17 @@ export default function DriverPortalPage({
   isLimpModeActive = false,
   onToggleLimpMode,
 }) {
-  const { activeVehicle, activeDriver } = useFleet();
-  const [isDvirOpen, setIsDvirOpen] = useState(false);
+  const { activeVehicle, activeDriver, runObdPreTripScan } = useFleet();
+  const [scanStatusToast, setScanStatusToast] = useState(null);
   const [sosTriggered, setSosTriggered] = useState(false);
+
+  const handleDriverScan = () => {
+    if (runObdPreTripScan && activeVehicle) {
+      runObdPreTripScan(activeVehicle.id);
+    }
+    setScanStatusToast('OBD Pre-Trip Scan Complete: All 4 Monitors Ready • 0 DTCs • 12.6V Battery Nominal');
+    setTimeout(() => setScanStatusToast(null), 4500);
+  };
 
   const speed = telemetry?.speed || 0;
   const score = telemetry?.score || 92;
@@ -137,11 +144,11 @@ export default function DriverPortalPage({
             <div className="grid grid-cols-2 gap-2 mt-1">
               <button
                 type="button"
-                onClick={() => setIsDvirOpen(true)}
+                onClick={handleDriverScan}
                 className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-blue-300 bg-blue-50 hover:bg-blue-100 text-[#0B3D91] font-display font-bold text-xs transition"
               >
-                <span>📋</span>
-                <span>Pre-Trip DVIR</span>
+                <span>⚡</span>
+                <span>OBD Pre-Trip Scan</span>
               </button>
 
               <button
@@ -157,6 +164,13 @@ export default function DriverPortalPage({
                 <span>{sosTriggered ? 'SOS BROADCASTING' : 'Emergency SOS'}</span>
               </button>
             </div>
+
+            {scanStatusToast && (
+              <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono text-[11px] font-bold flex items-center gap-2">
+                <span>✅</span>
+                <span>{scanStatusToast}</span>
+              </div>
+            )}
           </Card>
 
           {/* Autonomous Governor Card */}
@@ -191,16 +205,6 @@ export default function DriverPortalPage({
           </Card>
         </div>
       </div>
-
-      {/* DVIR Inspection Modal */}
-      {isDvirOpen && (
-        <DVIRInspectionModal
-          isOpen={isDvirOpen}
-          onClose={() => setIsDvirOpen(false)}
-          vehicle={activeVehicle}
-          driver={activeDriver}
-        />
-      )}
     </div>
   );
 }

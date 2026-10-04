@@ -1,7 +1,6 @@
 import React from 'react';
 import MaintenanceTracker from '../components/MaintenanceTracker';
 import CostComparison from '../components/CostComparison';
-import DVIRHistoryTable from '../components/dvir/DVIRHistoryTable';
 import { SectionLabel } from '../components/ui';
 
 export default function MaintenancePage({ 
@@ -47,7 +46,6 @@ export default function MaintenancePage({
             setAiMechanicEnabled={setAiMechanicEnabled}
           />
           <CostComparison />
-          <DVIRHistoryTable />
         </div>
 
       </div>

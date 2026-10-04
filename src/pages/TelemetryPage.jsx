@@ -5,7 +5,6 @@ import AeroSweetSpotRadar from '../components/AeroSweetSpotRadar';
 import ECUDiagnostics from '../components/ECUDiagnostics';
 import AITerminalFeed from '../components/AITerminalFeed';
 import ChassisHeatmapDeck from '../components/ChassisHeatmapDeck';
-import AviationToggleBar from '../components/AviationToggleBar';
 import { useFleet } from '../context/FleetContext';
 import { SectionLabel } from '../components/ui';
 import { PlateBadge } from '../components/ui/PlateBadge';
@@ -24,10 +23,6 @@ export default function TelemetryPage({
   const { activeVehicle } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
 
-  // Tactile Aerospace Toggle States
-  const [sportMode, setSportMode] = useState(false);
-  const [launchControl, setLaunchControl] = useState(false);
-  const [activeAero, setActiveAero] = useState(false);
   const [canFdBurst, setCanFdBurst] = useState(true);
 
   return (
@@ -46,22 +41,12 @@ export default function TelemetryPage({
                 <span className="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {canFdBurst ? 'CAN-FD BURST 100ms' : 'LIVE STREAM ACTIVE'}
                 </span>
-                {sportMode && (
-                  <span className="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
-                    SPORT MAP ENGAGED
-                  </span>
-                )}
-                {launchControl && (
-                  <span className="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
-                    LAUNCH CTRL ARMED
-                  </span>
-                )}
               </div>
               <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#0F172A] tracking-tight mt-1">
                 Luminous Cockpit & Aero Dynamic Vector Engine
               </h1>
               <p className="mt-1 font-mono text-xs text-slate-600 leading-relaxed max-w-2xl">
-                Real-time 300ms CAN-bus streaming, 270° titanium-chronometer flight binnacle, 3D isometric chassis tire heatmap, and tactile aerospace switchboard.
+                Real-time 300ms CAN-bus streaming, 270° titanium-chronometer flight binnacle, and 3D isometric chassis tire pressure deck.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
@@ -85,23 +70,9 @@ export default function TelemetryPage({
           </div>
         </div>
 
-        {/* Tactical Aviation Physical Toggle Switchboard */}
-        <AviationToggleBar
-          sportMode={sportMode}
-          setSportMode={setSportMode}
-          launchControl={launchControl}
-          setLaunchControl={setLaunchControl}
-          activeAero={activeAero}
-          setActiveAero={setActiveAero}
-          canFdBurst={canFdBurst}
-          setCanFdBurst={setCanFdBurst}
-        />
-
-        {/* Row 2: 3D Isometric Chassis & Dynamic Tire Heatmap Deck */}
+        {/* Row 2: 3D Isometric Chassis & Dynamic Tire Deck */}
         <ChassisHeatmapDeck
           telemetry={telemetry}
-          sportMode={sportMode}
-          activeAero={activeAero}
         />
 
         {/* Row 3: Signature AeroSweetSpotRadar with Virtual Wind Tunnel */}
