@@ -22,9 +22,13 @@ import SimulatorPage from './pages/SimulatorPage';
 import LivingDigitalTwinPage from './pages/LivingDigitalTwinPage';
 import DriverPortalPage from './pages/DriverPortalPage';
 import DigitalCityPage from './pages/DigitalCityPage';
+import DualCockpitPage from './pages/DualCockpitPage';
 import RemoteControllerPage from './pages/RemoteControllerPage';
 import CommandBar from './components/CommandBar';
+import FloatingWorldPiP from './components/FloatingWorldPiP';
 import AICopilotChatbot from './components/AICopilotChatbot';
+import AccessRestrictedGuard from './components/AccessRestrictedGuard';
+import { useAuth } from './context/AuthContext';
 import { 
   calculateLimpHomeSpeed, 
   calculateKineticStopPenalty, 
@@ -34,6 +38,16 @@ import {
   DEFAULT_ROAD_COORDINATES, 
   interpolateRoadPosition 
 } from './utils/osrmRouting';
+import { 
+  initWorldPhysics, 
+  subscribeTelemetry, 
+  setSafetyLogHandler, 
+  setImmobilized, 
+  injectFaultCode, 
+  clearFaultCodes,
+  setWorldControl 
+} from './services/worldPhysicsEngine';
+
 function SimulationWrapper() {
   const { activeVehicle, activeDriver } = useFleet();
   const vehicleProfile = activeVehicle?.profile || 'sedan';
@@ -45,7 +59,9 @@ function SimulationWrapper() {
   const [spiffsCount, setSpiffsCount] = useState(30);
   const [fuelPrice, setFuelPrice] = useState(95);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPiPActive, setIsPiPActive] = useState(false);
   const location = useLocation();
+  const { currentRole, activeRoleData, ROLES, setRole, isRouteAllowed } = useAuth();
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -96,33 +112,56 @@ function SimulationWrapper() {
     costPenalty: 0
   });
 
-  // Telemetry Central State
+  // Telemetry Central State (Direct Authoritative Mirror of Real-World Physics)
   const [telemetry, setTelemetry] = useState({
-    speed: 55.2,
-    rpm: 2450,
-    coolant: 85.8,
-    maf: 9.4,
-    fuel: 40.1,
+    speed: 0.0,
+    rpm: 850,
+    gear: 'D',
+    driveMode: 'SPORT',
+    engineOn: true,
+    coolant: 85.0,
+    oilTemp: 90.0,
+    oilPressurePsi: 28.0,
+    maf: 2.4,
+    fuel: 100.0,
+    fuelL: 50.0,
     tripMileage: 0.0,
     co2: 0.0,
+    tailpipeCo2: 0.0,
+    wellToWheelCo2: 0.0,
     score: 100,
     voltage: 13.9,
-    events: [{ label: 'Smooth launch', delta: 0 }],
-    history: Array.from({ length: 8 }, (_, index) => ({ name: `${index + 1}`, voltage: 13.9 + index * 0.04 })),
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    latG: 0,
+    longG: 0,
+    tireTempFL: 35,
+    tireTempFR: 35,
+    brakeTempFL: 45,
+    brakeTempFR: 45,
+    tirePressureFL: 32.0,
+    tirePressureFR: 32.0,
+    tirePressureRL: 31.5,
+    tirePressureRR: 31.5,
+    events: [{ label: 'Real World Physics Online', delta: 0 }],
+    history: Array.from({ length: 8 }, (_, index) => ({ name: `${index + 1}`, voltage: 13.9 })),
     activeDuration: 0,
     activeFuelUsed: 0,
-    partsWear: { oil: 94.2, brakes: 88.5, battery: 98.1, coolant: 96.4 },
-    predictedFailureDays: { oil: 120, brakes: 90, battery: 400, coolant: 150 },
-    tripCoordinates: [],
+    partsWear: { oil: 98.5, brakes: 96.0, battery: 99.2, coolant: 97.8 },
+    predictedFailureDays: { oil: 180, brakes: 120, battery: 450, coolant: 220 },
+    tripCoordinates: [[DEFAULT_ROAD_COORDINATES[0][0], DEFAULT_ROAD_COORDINATES[0][1]]],
     route: {
       progress: 0,
       lat: DEFAULT_ROAD_COORDINATES[0][0],
       lon: DEFAULT_ROAD_COORDINATES[0][1],
-      heading: 237,
+      heading: 0,
       startName: 'Fleet Hub (Connaught Place)',
       endName: 'Airport Cargo Terminal (IGI)',
-      etaMinutes: 30
-    }
+      etaMinutes: 0
+    },
+    isRealWorldLive: true,
+    lastRealWorldUpdate: Date.now()
   });
 
   // BLE offline package simulation
@@ -205,6 +244,7 @@ function SimulationWrapper() {
 
 
   const handleSimulateStop = () => {
+    setWorldControl({ brake: 1.0, throttle: 0 });
     const massKg = VEHICLE_PHYSICS_PROFILES[vehicleProfile]?.massKg || 1400;
     const penalty = calculateKineticStopPenalty(telemetry.speed, 0, massKg);
     setKineticWaste((prev) => ({
@@ -215,361 +255,87 @@ function SimulationWrapper() {
     }));
     setTelemetry((prev) => ({
       ...prev,
-      speed: 0,
-      rpm: 750,
       score: Math.max(0, prev.score - 2.5),
-      events: [{ label: 'Full Stop (GLOSA Lost)', delta: -2.5 }, ...prev.events.slice(0, 3)]
+      events: [{ label: 'Emergency Brake Stop', delta: -2.5 }, ...prev.events.slice(0, 3)]
     }));
   };
 
-  // Main Telemetry Simulator Loop
+  // ── Authoritative Real-World Telematics Pipeline ──────────────────────────
+  // Replaces synthetic random timers with continuous real-world physics streaming
   useEffect(() => {
-    if (!isConnected || securityState.isImmobilized) return;
+    initWorldPhysics(vehicleProfile);
 
-    const interval = setInterval(() => {
+    setSafetyLogHandler((log) => {
+      setSafetyLog((prev) => [log, ...prev].slice(0, 15));
+    });
+
+    const unsubscribe = subscribeTelemetry((realTel) => {
+      // Calculate dynamic route progress & ETA from real vehicle coordinates & mileage
+      const tripMileage = realTel.tripMileage || 0;
+      const progress = Math.min(100, (tripMileage / 25) * 100);
+      const etaMinutes = realTel.speed > 3 
+        ? Math.max(1, Math.round(((25 - (tripMileage % 25)) / realTel.speed) * 60))
+        : 0;
+
+      // Geofence checking on real lat/lon
+      const currentLat = realTel.route?.lat || DEFAULT_ROAD_COORDINATES[0][0];
+      const currentLon = realTel.route?.lon || DEFAULT_ROAD_COORDINATES[0][1];
+      const minLat = Math.min(...GEOFENCE_COORDS.map(c => c[0]));
+      const maxLat = Math.max(...GEOFENCE_COORDS.map(c => c[0]));
+      const minLon = Math.min(...GEOFENCE_COORDS.map(c => c[1]));
+      const maxLon = Math.max(...GEOFENCE_COORDS.map(c => c[1]));
+      const isOutsideGeofence = currentLat < minLat || currentLat > maxLat || currentLon < minLon || currentLon > maxLon;
+
+      if (isOutsideGeofence) {
+        setSecurityState(s => ({ ...s, isGeofenceBreached: true, threatLevel: 'Alert' }));
+      } else {
+        setSecurityState(s => ({ ...s, isGeofenceBreached: false }));
+      }
+
+      const co2Tailpipe = Number(((realTel.activeFuelUsed || 0) * 2.31).toFixed(2));
+      const co2WellToWheel = Number((co2Tailpipe * 1.18).toFixed(2));
+
       setTelemetry((prev) => {
-        // ── STRICT REAL-WORLD TELEMETRY PIPELINE ────────────────────────────
-        // When 3D digital world or remote phone controller is active, do NOT mock or overwrite
-        const isLiveTwinActive = prev.isRealWorldLive && (Date.now() - (prev.lastRealWorldUpdate || 0) < 3500);
-
-        if (isLiveTwinActive) {
-          const speedVal = prev.speed || 0;
-          const newTripMileage = prev.tripMileage + (speedVal / 3600) * 0.3;
-          const newProgress = Math.min(100, (newTripMileage / 25) * 100);
-          const newDuration = prev.activeDuration + 0.3;
-          const fuelBurnedThisTick = ((prev.maf || 2) * 0.33 / 3600) * 0.3;
-          const newActiveFuelUsed = prev.activeFuelUsed + fuelBurnedThisTick;
-
-          // Real driving safety events from true G-forces
-          let scorePenalty = 0;
-          let eventLabel = '';
-          if (prev.longG < -0.45) {
-            scorePenalty = 3.5;
-            eventLabel = 'Harsh Brake (Digital Twin)';
-          } else if (prev.longG > 0.45) {
-            scorePenalty = 2.5;
-            eventLabel = 'Rapid Accel (Digital Twin)';
-          } else if (Math.abs(prev.latG || 0) > 0.40) {
-            scorePenalty = 2.0;
-            eventLabel = 'Hard Cornering (Digital Twin)';
-          } else if (prev.rpm > 5800) {
-            scorePenalty = 1.0;
-            eventLabel = 'Engine Overrev (Digital Twin)';
-          }
-
-          let updatedScore = prev.score;
-          let updatedEvents = prev.events;
-          if (eventLabel) {
-            updatedScore = Math.max(0, prev.score - scorePenalty);
-            updatedEvents = [{ label: eventLabel, delta: -scorePenalty }, ...prev.events.slice(0, 3)];
-            setSafetyLog(logs => [{
-              id: Date.now(),
-              time: new Date().toLocaleTimeString(),
-              type: eventLabel,
-              penalty: scorePenalty,
-              speed: speedVal.toFixed(1)
-            }, ...logs].slice(0, 10));
-          }
-
-          return {
-            ...prev,
-            tripMileage: newTripMileage,
-            activeDuration: newDuration,
-            activeFuelUsed: newActiveFuelUsed,
-            score: updatedScore,
-            events: updatedEvents,
-            route: {
-              ...prev.route,
-              progress: newProgress,
-            }
-          };
-        }
-
-        let maxSpeed = 120;
-        let maxRpm = 6800;
-        let maxMaf = 20.0;
-        let fuelBurn = 0.016;
-
-        if (vehicleProfile === 'motorcycle') {
-          maxSpeed = 105;
-          fuelBurn = 0.007;
-        } else if (vehicleProfile === 'hatchback') {
-          maxSpeed = 95;
-          fuelBurn = 0.009;
-        } else if (vehicleProfile === 'suv') {
-          maxSpeed = 110;
-          fuelBurn = 0.024;
-        } else if (vehicleProfile === 'truck' || vehicleProfile === 'pickup_lcv') {
-          maxSpeed = 90;
-          fuelBurn = 0.032;
-        }
-
-        if (aiAgentOptimized) {
-          fuelBurn = fuelBurn * 0.85;
-        }
-
-        let isBadWeather = false;
-        if (weather) {
-           const code = weather.weathercode;
-           if (code >= 51 || code === 45 || code === 48) {
-             isBadWeather = true;
-           }
-        }
-
-        if (aiNavigatorEnabled && isBadWeather) {
-           maxSpeed = maxSpeed * 0.7; // AI slows down the car safely in bad weather
-        }
-
-        // Limp-Home Velocity Governor Enforced Speed Ceiling
-        if (isLimpModeActive) {
-          const profile = VEHICLE_PHYSICS_PROFILES[vehicleProfile] || VEHICLE_PHYSICS_PROFILES.sedan;
-          const currentFuelLiters = (profile.tankCapacityLiters * prev.fuel) / 100;
-          const remainingDist = Math.max(0, 25 - prev.tripMileage);
-          const limp = calculateLimpHomeSpeed(remainingDist, currentFuelLiters, vehicleProfile);
-          if (limp.recommendedSpeedKmh) {
-            maxSpeed = Math.min(maxSpeed, limp.recommendedSpeedKmh);
-          }
-        }
-
-        let speedDelta = (Math.random() - 0.45) * 6;
-        if (aiAgentOptimized) {
-          speedDelta = (Math.random() - 0.45) * 2.5;
-        }
-        if ((aiNavigatorEnabled && isBadWeather && prev.speed > maxSpeed) || (isLimpModeActive && prev.speed > maxSpeed)) {
-           speedDelta = -3.2; // AI / Governor applies gentle braking to reach safe speed
-        }
-
-        const newSpeed = Math.max(0, Math.min(maxSpeed, prev.speed + speedDelta));
-
-        const targetRpm = newSpeed * 35 + 800 + (Math.random() - 0.5) * 200;
-        const newRpm = Math.max(700, Math.min(maxRpm, targetRpm));
-
-        const coolantDelta = (newRpm > 3000 ? 0.3 : -0.1) + (Math.random() - 0.5) * 0.2;
-        const newCoolant = Math.max(75, Math.min(108, prev.coolant + coolantDelta));
-
-        const targetMaf = (newRpm / 250) + (Math.random() - 0.5) * 1.2;
-        const newMaf = Math.max(2, Math.min(maxMaf, targetMaf));
-
-        const newFuel = Math.max(0, prev.fuel - fuelBurn);
-
-        const newVoltage = 13.8 + Math.random() * 0.35;
-        const newHistory = [...prev.history.slice(-7), { name: `${prev.history.length + 1}`, voltage: newVoltage }];
-
-        let speedVal = newSpeed;
-        let rpmVal = newRpm;
-        let mafVal = newMaf;
-        let coolantVal = newCoolant;
-
-        let newTripMileage = prev.tripMileage;
-        let newProgress = prev.route.progress;
-
-        if (prev.route.progress >= 100) {
-          speedVal = 0;
-          rpmVal = 800 + (Math.random() - 0.5) * 40;
-          mafVal = 2.4 + (Math.random() - 0.5) * 0.4;
-          newProgress = 100;
-        } else {
-          newTripMileage = prev.tripMileage + (speedVal / 3600) * 0.3;
-          newProgress = (newTripMileage / 25) * 100;
-          if (newProgress >= 100) newProgress = 100;
-        }
-
-        let newLat = prev.route.lat;
-        let newLon = prev.route.lon;
-        let newHeading = prev.route.heading || 237;
-        if (newProgress < 100 && speedVal > 0) {
-          const roadPos = interpolateRoadPosition(DEFAULT_ROAD_COORDINATES, newProgress);
-          newLat = roadPos.lat;
-          newLon = roadPos.lon;
-          newHeading = roadPos.heading;
-        }
-
-        const newEtaMinutes = speedVal > 0 ? ((25 - newTripMileage) / speedVal) * 60 : 0;
-
-        const newDuration = prev.activeDuration + 0.3;
-        const fuelBurnedThisTick = (mafVal * 0.33 / 3600) * 0.3;
-        const newActiveFuelUsed = prev.activeFuelUsed + fuelBurnedThisTick;
-
-        const newTripCoordinates = [...prev.tripCoordinates];
-        if (Math.random() < 0.2) {
-           newTripCoordinates.push([newLat, newLon]);
-        }
-
-        const minLat = Math.min(...GEOFENCE_COORDS.map(c => c[0]));
-        const maxLat = Math.max(...GEOFENCE_COORDS.map(c => c[0]));
-        const minLon = Math.min(...GEOFENCE_COORDS.map(c => c[1]));
-        const maxLon = Math.max(...GEOFENCE_COORDS.map(c => c[1]));
-        const isOutsideGeofence = newLat < minLat || newLat > maxLat || newLon < minLon || newLon > maxLon;
-
-        let scorePenalty = 0;
-        let eventLabel = '';
-
-        const rand = Math.random();
-        if (isOutsideGeofence) {
-          scorePenalty = 2.0;
-          eventLabel = 'Geofence Exit';
-        } else if (speedVal > speedLimit) {
-          scorePenalty = 0.8;
-          eventLabel = 'Speeding';
-        } else if (speedDelta < -4.8) {
-          scorePenalty = 3.5;
-          eventLabel = 'Harsh Brake';
-        } else if (speedDelta > 4.8) {
-          scorePenalty = 2.5;
-          eventLabel = 'Rapid Accel';
-        } else if (rpmVal > 3800) {
-          scorePenalty = 0.5;
-          eventLabel = 'Engine Overrev';
-        } else if (speedVal === 0 && rand < 0.1) {
-          scorePenalty = 0.2;
-          eventLabel = 'Idle penalty';
-        }
-
-        let updatedScore = prev.score;
-        let updatedEvents = prev.events;
-
-        if (eventLabel) {
-          updatedScore = Math.max(0, prev.score - scorePenalty);
-          updatedEvents = [{ label: eventLabel, delta: -scorePenalty }, ...prev.events.slice(0, 3)];
-          
-          // Log to Safety Coach if it's a driving event
-          if (['Harsh Brake', 'Rapid Accel', 'Speeding'].includes(eventLabel)) {
-             setSafetyLog(logs => [{ 
-               id: Date.now(),
-               time: new Date().toLocaleTimeString(), 
-               type: eventLabel, 
-               penalty: scorePenalty,
-               speed: speedVal.toFixed(1)
-             }, ...logs].slice(0, 10));
-
-             if (eventLabel === 'Harsh Brake') {
-               const mass = VEHICLE_PHYSICS_PROFILES[vehicleProfile]?.massKg || 1400;
-               const penalty = calculateKineticStopPenalty(prev.speed, speedVal, mass);
-               setKineticWaste((kw) => ({
-                 stopsCount: kw.stopsCount + (speedVal < 5 ? 1 : 0),
-                 energyDissipatedKj: kw.energyDissipatedKj + penalty.energyKj,
-                 fuelWastedLiters: kw.fuelWastedLiters + penalty.fuelWastedLiters,
-                 costPenalty: kw.costPenalty + penalty.costPenalty
-               }));
-             }
-          }
-        } else if (rand < 0.2) {
-          updatedScore = Math.min(100, prev.score + 0.1);
-        }
-
-        // Random Security Anomalies Simulation
-        const anomalyRand = Math.random();
-        if (anomalyRand < 0.005) { // 0.5% chance per tick of sensor drop
-           setSecurityState(s => ({
-              ...s,
-              threatLevel: 'Elevated',
-              anomalies: [{ id: Date.now(), time: new Date().toLocaleTimeString(), type: 'Signal Drop', message: 'Intermittent signal loss from Engine Control Unit.' }, ...s.anomalies].slice(0, 5)
-           }));
-        } else if (fuelBurn > 0.05) { // Massive fuel drop (simulated theft)
-           setSecurityState(s => ({
-              ...s,
-              threatLevel: 'Critical',
-              anomalies: [{ id: Date.now(), time: new Date().toLocaleTimeString(), type: 'Fuel Siphoning', message: 'Rapid fuel loss detected while vehicle is stationary or slow.' }, ...s.anomalies].slice(0, 5)
-           }));
-        }
-        
-        if (isOutsideGeofence) {
-           setSecurityState(s => ({ ...s, isGeofenceBreached: true, threatLevel: 'Alert' }));
-        } else {
-           setSecurityState(s => ({ ...s, isGeofenceBreached: false }));
-        }
-
-        let brakeWearDelta = 0.0015;
-
-        if (eventLabel === 'Harsh Brake') {
-          brakeWearDelta += isBadWeather ? 2.5 : 1.5;
-        }
-        let oilWearDelta = 0.002;
-        if (rpmVal > 3800) {
-          oilWearDelta += 0.02;
-        }
-        let coolantWearDelta = 0.001;
-        if (coolantVal > 100) {
-          coolantWearDelta += 0.015;
-        }
-
-        // AI Navigator Thought Logging
-        if (aiNavigatorEnabled) {
-          const randLog = Math.random();
-          if (isBadWeather && randLog < 0.05) {
-             setAiThoughtLogs(logs => [{ time: new Date().toLocaleTimeString(), message: 'Heavy rain detected. Reducing max speed for safety and dynamically recalculating ETA...' }, ...logs].slice(0, 5));
-          } else if (randLog < 0.01) {
-             setAiThoughtLogs(logs => [{ time: new Date().toLocaleTimeString(), message: 'Traffic flow is optimal. Maintaining current routing coordinates.' }, ...logs].slice(0, 5));
-          }
-        }
-
-        // AI Mechanic Predictive Failure
-        let newPredictedFailureDays = prev.predictedFailureDays;
-        if (aiMechanicEnabled) {
-           newPredictedFailureDays = {
-             oil: Math.max(1, Math.round(prev.partsWear.oil / (oilWearDelta * 200))),
-             brakes: Math.max(1, Math.round(prev.partsWear.brakes / (brakeWearDelta * 200))),
-             battery: Math.max(1, Math.round(prev.partsWear.battery / (0.0005 * 200))),
-             coolant: Math.max(1, Math.round(prev.partsWear.coolant / (coolantWearDelta * 200)))
-           };
-
-           if (newPredictedFailureDays.brakes < 15 && Math.random() < 0.1) {
-             updatedEvents = [{ label: 'AI Alert: Brake Wear Critical!', delta: 0 }, ...updatedEvents].slice(0, 3);
-           }
-        }
-
-        const newPartsWear = {
-          oil: Math.max(0, prev.partsWear.oil - oilWearDelta),
-          brakes: Math.max(0, prev.partsWear.brakes - brakeWearDelta),
-          battery: Math.max(0, prev.partsWear.battery - 0.0005),
-          coolant: Math.max(0, prev.partsWear.coolant - coolantWearDelta)
-        };
-
-        const co2Tailpipe = newActiveFuelUsed * 2.31;
-        const co2WellToWheel = co2Tailpipe * 1.18;
+        const history = [
+          ...(prev.history || []).slice(-7),
+          { name: `${((prev.history?.length || 0) + 1)}`, voltage: realTel.voltage }
+        ];
 
         return {
-          speed: speedVal,
-          rpm: rpmVal,
-          coolant: coolantVal,
-          maf: mafVal,
-          fuel: newFuel,
-          tripMileage: newTripMileage,
-          co2: Number(co2Tailpipe.toFixed(2)),
-          tailpipeCo2: Number(co2Tailpipe.toFixed(2)),
-          wellToWheelCo2: Number(co2WellToWheel.toFixed(2)),
+          ...prev,
+          ...realTel,
+          co2: co2Tailpipe,
+          tailpipeCo2: co2Tailpipe,
+          wellToWheelCo2: co2WellToWheel,
           mileageUnit: 'km/L',
           engineTypeId: 'i4_petrol',
           batterySocPct: null,
-          oilPressurePsi: Number((24.0 + (rpmVal / 6800) * 42.0).toFixed(1)),
-          score: updatedScore,
-          events: updatedEvents,
-          voltage: newVoltage,
-          history: newHistory,
-          activeDuration: newDuration,
-          activeFuelUsed: newActiveFuelUsed,
-          partsWear: newPartsWear,
-          predictedFailureDays: newPredictedFailureDays,
-          tripCoordinates: newTripCoordinates,
+          history,
           route: {
-            progress: newProgress,
-            lat: newLat,
-            lon: newLon,
-            heading: newHeading,
-            startName: prev.route.startName,
-            endName: prev.route.endName,
-            etaMinutes: newEtaMinutes
+            ...realTel.route,
+            progress,
+            etaMinutes
           }
         };
       });
-    }, 300);
+    });
 
-    return () => clearInterval(interval);
-  }, [isConnected, vehicleProfile, speedLimit, aiAgentOptimized, securityState.isImmobilized]);
+    return () => unsubscribe();
+  }, [vehicleProfile]);
 
+  useEffect(() => {
+    setImmobilized(securityState.isImmobilized);
+  }, [securityState.isImmobilized]);
 
-  const handleClearDTCs = () => setActiveDTCs([]);
-  const handleTriggerDTC = () => setActiveDTCs(['P0300']);
+  const handleClearDTCs = () => {
+    clearFaultCodes();
+    setActiveDTCs([]);
+  };
+
+  const handleTriggerDTC = (code = 'P0300') => {
+    injectFaultCode(code);
+    setActiveDTCs((prev) => prev.includes(code) ? prev : [...prev, code]);
+  };
 
   const handleEndTrip = () => {
     const distanceCovered = telemetry.tripMileage;
@@ -672,7 +438,9 @@ function SimulationWrapper() {
       handleTrainingComplete,
       modelState,
       setModelState,
-      vehicleProfile
+      vehicleProfile,
+      isPiPActive,
+      setIsPiPActive
     }}>
       <div className="flex h-screen overflow-hidden bg-[var(--bg-base)] text-[var(--text-hi)] transition-colors duration-300">
         <Sidebar 
@@ -694,12 +462,26 @@ function SimulationWrapper() {
             activeDTCs={activeDTCs}
             securityState={securityState}
             telemetry={telemetry}
+            isPiPActive={isPiPActive}
+            onTogglePiP={() => setIsPiPActive(prev => !prev)}
             onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
           />
           
-          <div className="flex-1 w-full min-w-0 pb-16 md:pb-0">
-            <Outlet />
+          <div className="flex-1 w-full min-w-0 pb-16 md:pb-0 flex flex-col">
+            {!isRouteAllowed(location.pathname) ? (
+              <AccessRestrictedGuard
+                pathname={location.pathname}
+                activeRoleData={activeRoleData}
+                ROLES={ROLES}
+                setRole={setRole}
+              />
+            ) : (
+              <Outlet />
+            )}
           </div>
+
+          {/* Global Floating 3D Twin Picture-in-Picture Viewport */}
+          <FloatingWorldPiP />
 
           {/* Global Groq-Powered AI Telematics Copilot */}
           <AICopilotChatbot />
@@ -840,6 +622,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           {/* Standalone phone controller — no auth, no sidebar */}
           <Route path="/remote" element={<RemoteControllerPage />} />
+          <Route path="/controller" element={<RemoteControllerPage />} />
           <Route element={isAuthenticated ? <SimulationWrapper /> : <Navigate to="/login" replace />}>
             <Route path="/dashboard" element={<TelemetryPageWrapper />} />
             <Route path="/driver-portal" element={<DriverPortalPageWrapper />} />
@@ -853,6 +636,8 @@ export default function App() {
             <Route path="/safety" element={<DriverSafetyPage />} />
             <Route path="/security" element={<SecurityPage />} />
             <Route path="/world" element={<DigitalCityPage />} />
+            <Route path="/split-view" element={<DualCockpitPage />} />
+            <Route path="/dual-view" element={<DualCockpitPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>

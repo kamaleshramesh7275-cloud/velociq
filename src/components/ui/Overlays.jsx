@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
 import { CloseIcon } from '../icons';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Showroom Precision Modal
@@ -130,9 +131,14 @@ export function Tooltip({ content, children, className = '' }) {
  */
 export function CommandPalette({ isOpen, onClose, onNavigate }) {
   const [query, setQuery] = useState('');
+  const auth = useAuth ? useAuth() : null;
+  const isRouteAllowed = auth?.isRouteAllowed || (() => true);
 
-  const commands = [
+  const rawCommands = [
     { id: 'dashboard', label: 'Live Telemetry Dashboard', category: 'Drive', path: '/dashboard' },
+    { id: 'split-view', label: 'Dual Cockpit (3D + App)', category: 'Drive', path: '/split-view' },
+    { id: 'world', label: '3D Twin City Drive', category: 'Drive', path: '/world' },
+    { id: 'driver-portal', label: 'Driver Cockpit HUD', category: 'Drive', path: '/driver-portal' },
     { id: 'navigation', label: 'GPS Expressway & GLOSA Advisor', category: 'Drive', path: '/navigation' },
     { id: 'simulator', label: 'What-If Lab & Speed-Mileage Optimizer', category: 'Drive', path: '/simulator' },
     { id: 'digital-twin', label: 'Living Digital Twin & AI Optimizer', category: 'Insights', path: '/digital-twin' },
@@ -143,6 +149,8 @@ export function CommandPalette({ isOpen, onClose, onNavigate }) {
     { id: 'security', label: 'Threat Defense & Remote Immobilizer', category: 'Fleet', path: '/security' },
     { id: 'analytics', label: 'AI Analytics & Financial Matrix', category: 'Insights', path: '/analytics' },
   ];
+
+  const commands = rawCommands.filter(c => isRouteAllowed(c.path));
 
   const filtered = query.trim() === ''
     ? commands

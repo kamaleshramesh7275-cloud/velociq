@@ -61,3 +61,4 @@ Thumbs.db
 
 # Temporary media storage & scratchpads
 .tempmediaStorage/
+*.exe

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { onControlPacket, sendFeedback } from '../services/telemetryBridge';
+import { getVehicleState, setWorldControl, setWorldKey } from '../services/worldPhysicsEngine';
 import { useFleet } from '../context/FleetContext';
 import { useTheme } from '../context/ThemeContext';
 import { VEHICLE_PHYSICS_PROFILES } from '../utils/speedMileagePhysics';
@@ -597,11 +598,11 @@ function buildTrafficNPC(scene, x, z, dir = 1) {
 export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-twin' }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
-    engineOn: false,
+    engineOn: true,
     throttle: 0,
     brake: 0,
     steer: 0,
-    gear: 'P',
+    gear: 'D',
     driveMode: 'SPORT',
     regenLevel: 1,
     handbrake: false,
@@ -631,7 +632,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
   const [cameraMode, setCameraMode] = useState('chase'); // chase|cockpit|bumper|drone
   const [worldTime, setWorldTime] = useState('day');     // day|sunset|night
   const [weather, setWeather] = useState('clear');       // clear|rain|fog
-  const [stats, setStats] = useState({ speed: 0, rpm: 800, gear: 'P', latG: '0.00', fuelL: '50.0' });
+  const [stats, setStats] = useState({ speed: 0, rpm: 800, gear: 'D', engineOn: true, latG: '0.00', fuelL: '50.0', throttle: 0 });
 
   const { theme } = useTheme();
   const { activeVehicle } = useFleet();
@@ -699,11 +700,16 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
 
     // ── 6. Keyboard Controls & Listeners ────────────────────────────────────
     const keys = {};
-    const handleKey = (e) => { keys[e.code] = e.type === 'keydown'; };
+    const handleKey = (e) => { 
+      keys[e.code] = e.type === 'keydown'; 
+      setWorldKey(e.code, e.type === 'keydown');
+    };
     window.addEventListener('keydown', handleKey);
     window.addEventListener('keyup', handleKey);
 
+    let lastRemotePacketTime = 0;
     const unsubControl = onControlPacket((cmd) => {
+      lastRemotePacketTime = performance.now();
       Object.assign(stateRef.current, cmd);
     });
 
@@ -774,116 +780,8 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
     let trafficLightTimer = 0;
     let trafficPhase = 0; // 0=Green, 1=Yellow, 2=Red
 
-    function physicsStep(dt) {
-      const s = stateRef.current;
-      const v = vehicleRef.current;
-
-      // Desktop Keyboard Hotkeys
-      if (keys['KeyW'] || keys['ArrowUp']) s.throttle = Math.min(1, s.throttle + 0.06);
-      else if (!keys['KeyW'] && !keys['ArrowUp']) s.throttle = Math.max(0, s.throttle - 0.10);
-
-      if (keys['KeyS'] || keys['ArrowDown']) s.brake = Math.min(1, s.brake + 0.12);
-      else s.brake = Math.max(0, s.brake - 0.15);
-
-      if (keys['KeyA'] || keys['ArrowLeft']) s.steer = Math.max(-1, s.steer - 0.07);
-      else if (keys['KeyD'] || keys['ArrowRight']) s.steer = Math.min(1, s.steer + 0.07);
-      else s.steer *= 0.82;
-
-      if (keys['Space']) s.handbrake = true;
-      else s.handbrake = false;
-
-      if (keys['KeyE']) s.engineOn = true;
-      if (keys['KeyP']) s.gear = 'P';
-      if (keys['KeyR']) s.gear = 'R';
-      if (keys['KeyN']) s.gear = 'N';
-      if (keys['Digit1'] || keys['KeyD']) s.gear = 'D';
-
-      if (!s.engineOn) {
-        v.rpm = Math.max(0, v.rpm - 80);
-        v.speed *= 0.98;
-        return;
-      }
-
-      // Drive Mode Multipliers
-      const driveModeMult = { ECO: 0.7, COMFORT: 0.9, SPORT: 1.15, TRACK: 1.35, DRIFT: 1.25 }[s.driveMode] || 1;
-      const gearActive = ['D', 'S'].includes(s.gear) || s.gear?.startsWith('M');
-      const reverse = s.gear === 'R';
-
-      if (s.gear === 'P' || s.gear === 'N') {
-        v.rpm = Math.max(800, v.rpm * 0.92);
-        v.speed *= 0.97;
-        v.longG = 0;
-        v.latG = 0;
-        return;
-      }
-
-      // Physics Calculation
-      const mass = physProfile.massKg || 1450;
-      const Cd = physProfile.Cd || 0.28;
-      const A = physProfile.frontalAreaM2 || 2.2;
-      const maxPowerW = (physProfile.maxPowerKw || 140) * 1000;
-
-      const vMs = v.speed / 3.6;
-      const driveForce = gearActive ? (s.throttle * maxPowerW * driveModeMult) / Math.max(1.2, vMs) : 0;
-      const dragForce = 0.5 * AIR_DENSITY * Cd * A * vMs * vMs;
-
-      let brakeForce = s.brake * mass * GRAVITY * 1.1;
-      if (s.handbrake) brakeForce = mass * GRAVITY * 1.8;
-
-      const direction = reverse ? -1 : 1;
-      const netForce = direction * driveForce - dragForce - brakeForce;
-      const accel = netForce / mass;
-
-      const newVMs = Math.max(-10, Math.min(65, vMs + accel * dt));
-      v.speed = newVMs * 3.6;
-
-      // Realistic Steering & Yaw Rate
-      const steerAngle = s.steer * 0.42 * (1 - Math.min(0.65, vMs / 70));
-      const wheelbase = 2.75;
-      const yawRate = vMs > 0.4 ? (vMs * Math.tan(steerAngle)) / wheelbase : 0;
-      const effectiveYawRate = s.escOn ? yawRate * 0.88 : yawRate;
-
-      v.rotY += effectiveYawRate * dt;
-      v.posX += Math.sin(v.rotY) * newVMs * dt;
-      v.posZ += Math.cos(v.rotY) * newVMs * dt;
-
-      // Bound within digital twin world
-      v.posX = Math.max(-420, Math.min(420, v.posX));
-      v.posZ = Math.max(-420, Math.min(420, v.posZ));
-
-      // Realistic RPM & Sound Synthesis
-      const targetRpm = s.engineOn ? (850 + s.throttle * 6500 * driveModeMult * Math.min(1, vMs / 32)) : 0;
-      v.rpm = v.rpm + (targetRpm - v.rpm) * 0.18;
-
-      // Engine Coolant & Oil Thermals
-      v.coolant += (v.rpm > 3500 ? 0.03 : -0.008) * dt * 60;
-      v.coolant = Math.max(70, Math.min(112, v.coolant));
-      v.oilTemp = v.coolant + (v.rpm / 8000) * 15;
-
-      // Fuel / Energy Depletion
-      const burnRate = (s.throttle * (physProfile.maxFuelConsumptionLPH || 16)) / 3600;
-      v.fuelL = Math.max(0, v.fuelL - burnRate * dt);
-
-      // Brake Rotor Thermal Friction Model ($Q = \mu \cdot F \cdot v$)
-      const frictionHeat = (s.brake * 14 + Math.abs(s.steer) * 4) * Math.max(0.5, vMs / 10);
-      const coolingRate = 0.15 + (vMs / 40) * 0.4; // Airflow cooling
-
-      v.brakeTempFL = Math.min(480, Math.max(30, v.brakeTempFL + (frictionHeat * 6 - (v.brakeTempFL - 25) * coolingRate) * dt));
-      v.brakeTempFR = Math.min(480, Math.max(30, v.brakeTempFR + (frictionHeat * 6 - (v.brakeTempFR - 25) * coolingRate) * dt));
-      v.brakeTempRL = Math.min(480, Math.max(30, v.brakeTempRL + (frictionHeat * 4 - (v.brakeTempRL - 25) * coolingRate) * dt));
-      v.brakeTempRR = Math.min(480, Math.max(30, v.brakeTempRR + (frictionHeat * 4 - (v.brakeTempRR - 25) * coolingRate) * dt));
-
-      v.tireTempFL = 30 + (v.brakeTempFL / 480) * 65;
-      v.tireTempFR = 30 + (v.brakeTempFR / 480) * 65;
-
-      // 3-Axis G-Forces
-      v.latG = (effectiveYawRate * vMs) / GRAVITY;
-      v.longG = accel / GRAVITY;
-    }
-
     function updateCarVisuals() {
-      const v = vehicleRef.current;
-      const s = stateRef.current;
+      const { vehicle: v, state: s } = getVehicleState();
 
       car.root.position.set(v.posX, 0, v.posZ);
       car.root.rotation.y = v.rotY;
@@ -939,7 +837,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
 
     function updateRainVFX(dt) {
       if (weather !== 'rain') return;
-      const v = vehicleRef.current;
+      const { vehicle: v } = getVehicleState();
       const p = rain.positions;
       for (let i = 1; i < p.length; i += 3) {
         p[i] -= 85 * dt;
@@ -986,7 +884,7 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
     }
 
     function updateCamera(mode) {
-      const v = vehicleRef.current;
+      const { vehicle: v } = getVehicleState();
       const lookAt = new THREE.Vector3(v.posX, 0.8, v.posZ);
 
       switch (mode) {
@@ -1037,7 +935,6 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
       const dt = Math.min(0.05, (now - prevTime) / 1000);
       prevTime = now;
 
-      physicsStep(dt);
       updateCarVisuals();
       updateRainVFX(dt);
       updateNPCs(dt);
@@ -1045,45 +942,18 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
 
       renderer.render(scene, camera);
 
-      // Dispatch 60Hz/20Hz Real-World Authoritative Telemetry
+      // Update Cockpit On-Screen HUD from authoritative physics
       if (now - lastTelemetryRef.current > 50) {
         lastTelemetryRef.current = now;
-        const v = vehicleRef.current;
-        const s = stateRef.current;
-        const tel = {
-          speed: Math.max(0, v.speed),
-          rpm: Math.round(v.rpm),
-          coolant: Math.round(v.coolant),
-          oilTemp: Math.round(v.oilTemp || 90),
-          fuelL: v.fuelL,
-          fuelPct: (v.fuelL / 50) * 100,
-          latG: v.latG,
-          longG: v.longG,
-          brakeTempFL: Math.round(v.brakeTempFL),
-          brakeTempFR: Math.round(v.brakeTempFR),
-          brakeTempRL: Math.round(v.brakeTempRL),
-          brakeTempRR: Math.round(v.brakeTempRR),
-          tireTempFL: Math.round(v.tireTempFL),
-          tireTempFR: Math.round(v.tireTempFR),
-          gear: s.gear,
-          driveMode: s.driveMode,
-          posX: v.posX,
-          posZ: v.posZ,
-          rotY: v.rotY,
-          throttle: s.throttle,
-          brake: s.brake,
-          steer: s.steer,
-          isRealWorldLive: true,
-        };
-
-        onTelemetry?.(tel);
-        sendFeedback({ speed: tel.speed, rpm: tel.rpm, coolant: tel.coolant, gear: tel.gear });
+        const { state: s, vehicle: v } = getVehicleState();
         setStats({
-          speed: Math.round(tel.speed),
-          rpm: Math.round(tel.rpm),
-          gear: tel.gear,
-          latG: Math.abs(tel.latG).toFixed(2),
-          fuelL: tel.fuelL.toFixed(1),
+          speed: Math.round(Math.max(0, v.speed)),
+          rpm: Math.round(v.rpm),
+          gear: s.gear,
+          latG: Math.abs(v.latG || 0).toFixed(2),
+          fuelL: (v.fuelL || 50).toFixed(1),
+          engineOn: s.engineOn,
+          throttle: Math.round((s.throttle || 0) * 100),
         });
       }
     }
@@ -1099,6 +969,37 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
       renderer.dispose();
     };
   }, [vehicleProfile, worldTime, weather, cameraMode, theme]);
+
+  const handleEngineToggle = () => {
+    const { state: s } = getVehicleState();
+    const nextEngine = !s.engineOn;
+    setWorldControl({
+      engineOn: nextEngine,
+      gear: nextEngine && s.gear === 'P' ? 'D' : s.gear,
+    });
+    setStats(prev => ({ ...prev, engineOn: nextEngine }));
+  };
+
+  const handleGearSelect = (g) => {
+    const { state: s } = getVehicleState();
+    setWorldControl({
+      gear: g,
+      engineOn: !s.engineOn && ['R', 'D', 'S'].includes(g) ? true : s.engineOn,
+    });
+    setStats(prev => ({ ...prev, gear: g }));
+  };
+
+  const handleQuickThrottle = (pct) => {
+    const { state: s } = getVehicleState();
+    setWorldControl({
+      engineOn: true,
+      gear: ['P', 'N'].includes(s.gear) ? 'D' : s.gear,
+      throttle: pct,
+      brake: 0,
+      handbrake: false,
+    });
+    setStats(prev => ({ ...prev, engineOn: true, throttle: Math.round(pct * 100) }));
+  };
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 480, background: '#0A0E15' }}>
@@ -1164,72 +1065,151 @@ export default function DigitalCityWorld({ onTelemetry, activeSource = 'digital-
 
       {/* ── Top Bar Controls: Time & Weather & Camera ────────────────── */}
       <div style={{
-        position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6, pointerEvents: 'all',
+        position: 'absolute', top: 10, left: 10, right: 10,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 6, pointerEvents: 'all', zIndex: 10,
       }}>
-        {/* Time Mode */}
-        {['day', 'sunset', 'night'].map(t => (
-          <button
-            key={t}
-            onClick={() => setWorldTime(t)}
-            style={{
-              padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: worldTime === t ? '#38BDF822' : 'rgba(15,23,42,0.8)',
-              border: worldTime === t ? '1px solid #38BDF8' : '1px solid #334155',
-              color: worldTime === t ? '#38BDF8' : '#94A3B8',
-              cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
-            }}
-          >
-            {t === 'day' ? '☀ DAY' : t === 'sunset' ? '🌅 DUSK' : '🌙 NIGHT'}
-          </button>
-        ))}
+        {/* Left: Time & Weather */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {/* Time Mode */}
+          {['day', 'sunset', 'night'].map(t => (
+            <button
+              key={t}
+              onClick={() => setWorldTime(t)}
+              style={{
+                padding: '4px 8px', borderRadius: 7, fontSize: 9.5, fontWeight: 800,
+                background: worldTime === t ? '#38BDF822' : 'rgba(15,23,42,0.85)',
+                border: worldTime === t ? '1px solid #38BDF8' : '1px solid #334155',
+                color: worldTime === t ? '#38BDF8' : '#94A3B8',
+                cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
+              }}
+            >
+              {t === 'day' ? '☀ DAY' : t === 'sunset' ? '🌅 DUSK' : '🌙 NIGHT'}
+            </button>
+          ))}
 
-        {/* Weather Mode */}
-        {['clear', 'rain', 'fog'].map(w => (
-          <button
-            key={w}
-            onClick={() => setWeather(w)}
-            style={{
-              padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: weather === w ? '#F59E0B22' : 'rgba(15,23,42,0.8)',
-              border: weather === w ? '1px solid #F59E0B' : '1px solid #334155',
-              color: weather === w ? '#F59E0B' : '#94A3B8',
-              cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
-            }}
-          >
-            {w === 'clear' ? '⛅ CLEAR' : w === 'rain' ? '🌧 RAIN' : '🌫 FOG'}
-          </button>
-        ))}
+          {/* Weather Mode */}
+          {['clear', 'rain', 'fog'].map(w => (
+            <button
+              key={w}
+              onClick={() => setWeather(w)}
+              style={{
+                padding: '4px 8px', borderRadius: 7, fontSize: 9.5, fontWeight: 800,
+                background: weather === w ? '#F59E0B22' : 'rgba(15,23,42,0.85)',
+                border: weather === w ? '1px solid #F59E0B' : '1px solid #334155',
+                color: weather === w ? '#F59E0B' : '#94A3B8',
+                cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
+              }}
+            >
+              {w === 'clear' ? '⛅ CLEAR' : w === 'rain' ? '🌧 RAIN' : '🌫 FOG'}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Camera Mode */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {['chase', 'cockpit', 'bumper', 'drone'].map(mode => (
+            <button
+              key={mode}
+              onClick={() => setCameraMode(mode)}
+              style={{
+                padding: '4px 8px', borderRadius: 7, fontSize: 9.5, fontWeight: 800,
+                background: cameraMode === mode ? '#00D4FF22' : 'rgba(15,23,42,0.85)',
+                border: cameraMode === mode ? '1px solid #00D4FF' : '1px solid #334155',
+                color: cameraMode === mode ? '#00D4FF' : '#94A3B8',
+                cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
+              }}
+            >
+              {mode.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* ── Interactive Cockpit Quick Drive Bar ──────────────────────── */}
       <div style={{
-        position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6, pointerEvents: 'all',
+        position: 'absolute', bottom: 68, left: '50%', transform: 'translateX(-50%)',
+        background: 'rgba(10,14,21,0.92)', border: '1px solid #1E293B',
+        borderRadius: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6,
+        pointerEvents: 'all', backdropFilter: 'blur(12px)',
+        maxWidth: 'calc(100% - 20px)', overflowX: 'auto',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 10,
       }}>
-        {['chase', 'cockpit', 'bumper', 'drone'].map(mode => (
+        {/* Engine ignition toggle */}
+        <button
+          onClick={handleEngineToggle}
+          style={{
+            padding: '4px 8px', borderRadius: 6, fontSize: 9.5, fontWeight: 800,
+            background: stats.engineOn ? '#22C55E22' : '#EF444422',
+            border: `1px solid ${stats.engineOn ? '#22C55E' : '#EF4444'}`,
+            color: stats.engineOn ? '#22C55E' : '#EF4444',
+            cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0, whiteSpace: 'nowrap',
+          }}
+        >
+          {stats.engineOn ? '⚡ START' : '⭕ STOP'}
+        </button>
+
+        {/* PRNDS Gear Selector */}
+        <div style={{ display: 'flex', gap: 3, background: '#0F172A', padding: 2, borderRadius: 6, flexShrink: 0 }}>
+          {['P', 'R', 'N', 'D', 'S'].map(g => {
+            const isCurrent = stats.gear === g;
+            const col = g === 'R' ? '#EF4444' : g === 'S' ? '#F59E0B' : g === 'P' ? '#10B981' : g === 'D' ? '#00D4FF' : '#94A3B8';
+            return (
+              <button
+                key={g}
+                onClick={() => handleGearSelect(g)}
+                style={{
+                  width: 24, height: 24, borderRadius: 5, fontSize: 10, fontWeight: 900,
+                  background: isCurrent ? `${col}33` : 'transparent',
+                  border: isCurrent ? `1.5px solid ${col}` : '1px solid transparent',
+                  color: isCurrent ? col : '#64748B',
+                  cursor: 'pointer', transition: 'all 0.1s',
+                }}
+              >
+                {g}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Drive Gas buttons */}
+        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
           <button
-            key={mode}
-            onClick={() => setCameraMode(mode)}
+            onClick={() => handleQuickThrottle(0.4)}
             style={{
-              padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-              background: cameraMode === mode ? '#00D4FF22' : 'rgba(15,23,42,0.8)',
-              border: cameraMode === mode ? '1px solid #00D4FF' : '1px solid #334155',
-              color: cameraMode === mode ? '#00D4FF' : '#94A3B8',
-              cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s',
+              padding: '4px 7px', borderRadius: 6, fontSize: 9.5, fontWeight: 800,
+              background: '#00D4FF18', border: '1px solid #00D4FF66', color: '#00D4FF',
+              cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
-            {mode.toUpperCase()}
+            ⚡ CRUISE
           </button>
-        ))}
-      </div>
+          <button
+            onClick={() => handleQuickThrottle(1.0)}
+            style={{
+              padding: '4px 7px', borderRadius: 6, fontSize: 9.5, fontWeight: 800,
+              background: '#F59E0B22', border: '1px solid #F59E0B88', color: '#F59E0B',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            🔥 GAS
+          </button>
+          <button
+            onClick={() => handleQuickThrottle(0)}
+            style={{
+              padding: '4px 7px', borderRadius: 6, fontSize: 9.5, fontWeight: 800,
+              background: '#EF444422', border: '1px solid #EF444466', color: '#EF4444',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            🛑 BRAKE
+          </button>
+        </div>
 
-      {/* ── Keyboard Control Ribbon ──────────────────────────────────── */}
-      <div style={{
-        position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)',
-        background: 'rgba(15,23,42,0.85)', border: '1px solid #334155',
-        borderRadius: 10, padding: '5px 14px', fontSize: 10, color: '#94A3B8',
-        pointerEvents: 'none', backdropFilter: 'blur(8px)', whiteSpace: 'nowrap',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-      }}>
-        <span style={{ color: '#00D4FF', fontWeight: 800 }}>W/S</span> Throttle/Brake · <span style={{ color: '#00D4FF', fontWeight: 800 }}>A/D</span> Steer · <span style={{ color: '#F59E0B', fontWeight: 800 }}>SPACE</span> Handbrake · <span style={{ color: '#10B981', fontWeight: 800 }}>E</span> Engine · <span style={{ color: '#A855F7', fontWeight: 800 }}>P/R/N/D</span> Gears
+        {/* Keyboard hints (visible on wider containers) */}
+        <div className="hidden lg:block" style={{ fontSize: 8.5, color: '#64748B', borderLeft: '1px solid #334155', paddingLeft: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <span style={{ color: '#00D4FF' }}>W/S</span> Drive · <span style={{ color: '#00D4FF' }}>A/D</span> Steer
+        </div>
       </div>
     </div>
   );

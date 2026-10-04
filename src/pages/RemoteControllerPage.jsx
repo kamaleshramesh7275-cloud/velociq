@@ -108,7 +108,7 @@ const FAULT_CODES = [
 
 export default function RemoteControllerPage() {
   // ─── Core vehicle state ──────────────────────────────────────────────────
-  const [engineOn, setEngineOn] = useState(false);
+  const [engineOn, setEngineOn] = useState(true);
   const [gear, setGear] = useState('P');
   const [driveMode, setDriveMode] = useState('COMFORT');
   const [driveModeIdx, setDriveModeIdx] = useState(1);
@@ -116,6 +116,7 @@ export default function RemoteControllerPage() {
 
   // ─── Pedal state (0–1) ─────────────────────────────────────────────────
   const [throttle, setThrottle] = useState(0);
+  const [cruiseLock, setCruiseLock] = useState(false);
   const [brake, setBrake] = useState(0);
   const [handbrakeOn, setHandbrakeOn] = useState(false);
 
@@ -189,39 +190,47 @@ export default function RemoteControllerPage() {
     return () => window.removeEventListener('deviceorientation', handleOrientation, true);
   }, [gyroMode]);
 
-  // ─── Send control loop at 60Hz ───────────────────────────────────────────
+  // ─── Control state ref for non-interrupted 50Hz streaming ─────────────────
+  const controlRef = useRef({});
+  controlRef.current = {
+    engineOn,
+    throttle,
+    brake,
+    steer: steerRef.current,
+    gear,
+    driveMode,
+    regenLevel,
+    handbrake: handbrakeOn,
+    escOn,
+    absOn,
+    lightMode,
+    leftBlinker,
+    rightBlinker,
+    hazardOn,
+    wiperMode,
+    acOn,
+    acTemp,
+    fanLevel,
+    activeFaults,
+    launchActive,
+    ts: Date.now(),
+  };
+
+  const sendImmediateControl = useCallback((overrides = {}) => {
+    const pkt = { ...controlRef.current, ...overrides, ts: Date.now() };
+    sendControl(pkt);
+  }, []);
+
+  // ─── Continuous send loop at 50Hz ───────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
-      sendControl({
-        engineOn,
-        throttle,
-        brake,
-        steer: steerRef.current,
-        gear,
-        driveMode,
-        regenLevel,
-        handbrake: handbrakeOn,
-        escOn,
-        absOn,
-        lightMode,
-        leftBlinker,
-        rightBlinker,
-        hazardOn,
-        wiperMode,
-        acOn,
-        acTemp,
-        fanLevel,
-        activeFaults,
-        launchActive,
-        ts: Date.now(),
-      });
-      updateEngineSound(feedback.rpm || 800, throttle, engineOn);
-    }, 16); // ~60Hz
+      const pkt = { ...controlRef.current, ts: Date.now() };
+      sendControl(pkt);
+      updateEngineSound(feedback.rpm || 800, pkt.throttle || 0, pkt.engineOn);
+    }, 20); // 50Hz continuous streaming
 
     return () => clearInterval(interval);
-  }, [engineOn, throttle, brake, gear, driveMode, regenLevel, handbrakeOn,
-    escOn, absOn, lightMode, leftBlinker, rightBlinker, hazardOn, wiperMode,
-    acOn, acTemp, fanLevel, activeFaults, launchActive, feedback.rpm]);
+  }, [feedback.rpm]);
 
   // ─── Hazard overrides blinkers ───────────────────────────────────────────
   useEffect(() => {
@@ -234,19 +243,28 @@ export default function RemoteControllerPage() {
     const next = !engineOn;
     setEngineOn(next);
     if (next) {
-      if (gear !== 'P' && gear !== 'N') setGear('P');
       vibrate([50, 30, 100, 30, 200]);
     } else {
+      setGear('P');
       vibrate([200]);
     }
+    sendImmediateControl({ engineOn: next, ...(next ? {} : { gear: 'P', throttle: 0 }) });
   };
 
   // ─── Gear change ─────────────────────────────────────────────────────────
   const handleGear = (g) => {
-    if (!engineOn && !['P', 'N'].includes(g)) return;
+    unlockAudio();
+    let nextEngine = engineOn;
+    if (!engineOn && ['R', 'D', 'S'].includes(g)) {
+      nextEngine = true;
+      setEngineOn(true);
+      vibrate([50, 30, 80]);
+    } else {
+      vibrate([30]);
+    }
     playShiftClick();
-    vibrate([30]);
     setGear(g);
+    sendImmediateControl({ gear: g, engineOn: nextEngine });
   };
 
   // ─── Drive Mode ──────────────────────────────────────────────────────────
@@ -255,61 +273,89 @@ export default function RemoteControllerPage() {
     setDriveModeIdx(idx);
     setDriveMode(DRIVE_MODES[idx]);
     vibrate([20]);
+    sendImmediateControl({ driveMode: DRIVE_MODES[idx] });
   };
 
   // ─── ESC Stage ───────────────────────────────────────────────────────────
   const cycleEsc = () => {
     const next = (escStage + 1) % 3;
     setEscStage(next);
-    setEscOn(next < 2);
+    const newEscOn = next < 2;
+    setEscOn(newEscOn);
     vibrate([20]);
+    sendImmediateControl({ escOn: newEscOn });
   };
 
-  // ─── Wheel touch steering ────────────────────────────────────────────────
-  const handleWheelTouch = useCallback((e) => {
+  // ─── Wheel steering (Touch & Pointer) ───────────────────────────────────
+  const handleWheelAction = useCallback((e) => {
     if (gyroMode) return;
-    const touch = e.touches[0];
+    const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
     const rect = e.currentTarget.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = touch.clientX - cx;
+    const dx = clientX - cx;
     const angle = Math.max(-180, Math.min(180, (dx / (rect.width / 2)) * 180));
     const normalized = angle / 180;
     steerRef.current = normalized;
     setSteer(normalized);
     setWheelAngle(Math.round(angle));
-  }, [gyroMode]);
+    sendImmediateControl({ steer: normalized });
+  }, [gyroMode, sendImmediateControl]);
 
   const handleWheelRelease = () => {
-    // Spring return
+    if (wheelTouchRef.current) clearInterval(wheelTouchRef.current);
     const spring = setInterval(() => {
-      steerRef.current *= 0.75;
+      steerRef.current *= 0.72;
       setSteer(steerRef.current);
       setWheelAngle(Math.round(steerRef.current * 180));
+      sendImmediateControl({ steer: steerRef.current });
       if (Math.abs(steerRef.current) < 0.01) {
         steerRef.current = 0;
         setSteer(0);
         setWheelAngle(0);
+        sendImmediateControl({ steer: 0 });
         clearInterval(spring);
       }
     }, 16);
     wheelTouchRef.current = spring;
   };
 
-  // ─── Pedal touch handlers ────────────────────────────────────────────────
+  // ─── Pedal touch & pointer handlers ─────────────────────────────────────
   const handlePedal = (pedal, e) => {
-    e.preventDefault();
+    if (e?.cancelable) e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    if (!touch) return;
-    const pct = Math.max(0, Math.min(1, 1 - (touch.clientY - rect.top) / rect.height));
-    if (pedal === 'throttle') setThrottle(pct);
-    else setBrake(pct);
+    const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : rect.bottom);
+    const pct = Math.max(0.1, Math.min(1, 1 - (clientY - rect.top) / rect.height));
+    const rounded = Math.round(pct * 100) / 100;
+    if (pedal === 'throttle') {
+      setCruiseLock(false);
+      setThrottle(rounded);
+      setBrake(0);
+      sendImmediateControl({ throttle: rounded, brake: 0 });
+    } else {
+      setCruiseLock(false);
+      setBrake(rounded);
+      setThrottle(0);
+      sendImmediateControl({ brake: rounded, throttle: 0 });
+    }
   };
 
   const releasePedal = (pedal) => {
-    if (pedal === 'throttle') setThrottle(0);
-    else setBrake(0);
+    if (pedal === 'throttle') {
+      if (!cruiseLock) {
+        setThrottle(0);
+        sendImmediateControl({ throttle: 0 });
+      }
+    } else {
+      setBrake(0);
+      sendImmediateControl({ brake: 0 });
+    }
+  };
+
+  const setPresetThrottle = (val) => {
+    setThrottle(val);
+    setBrake(0);
+    setCruiseLock(val > 0);
+    sendImmediateControl({ throttle: val, brake: 0 });
   };
 
   // ─── Fault inject / clear ────────────────────────────────────────────────
@@ -495,9 +541,12 @@ export default function RemoteControllerPage() {
             </button>
           </div>
           <div
-            onTouchStart={handleWheelTouch}
-            onTouchMove={handleWheelTouch}
+            onTouchStart={handleWheelAction}
+            onTouchMove={handleWheelAction}
             onTouchEnd={handleWheelRelease}
+            onPointerDown={handleWheelAction}
+            onPointerMove={(e) => { if (e.buttons > 0) handleWheelAction(e); }}
+            onPointerUp={handleWheelRelease}
             style={{
               width: 160, height: 160, margin: '0 auto',
               borderRadius: '50%',
@@ -530,13 +579,23 @@ export default function RemoteControllerPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {/* Throttle */}
           <div style={{ background: '#111318', borderRadius: 16, border: '1px solid #1E232E', padding: 12 }}>
-            <div style={{ fontSize: 10, color: '#22C55E', fontWeight: 700, marginBottom: 8, letterSpacing: '0.1em' }}>⚡ THROTTLE</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 10, color: '#22C55E', fontWeight: 700, letterSpacing: '0.1em' }}>⚡ THROTTLE</span>
+              {cruiseLock && (
+                <span style={{ fontSize: 9, background: '#22C55E33', color: '#22C55E', padding: '1px 6px', borderRadius: 4, fontWeight: 800 }}>
+                  CRUISE ON
+                </span>
+              )}
+            </div>
             <div
-              onTouchStart={(e) => { e.preventDefault(); handlePedal('throttle', e); }}
-              onTouchMove={(e) => { e.preventDefault(); handlePedal('throttle', e); }}
+              onTouchStart={(e) => handlePedal('throttle', e)}
+              onTouchMove={(e) => handlePedal('throttle', e)}
               onTouchEnd={() => releasePedal('throttle')}
+              onPointerDown={(e) => handlePedal('throttle', e)}
+              onPointerMove={(e) => { if (e.buttons > 0) handlePedal('throttle', e); }}
+              onPointerUp={() => releasePedal('throttle')}
               style={{
-                height: 120, background: '#0A0E15', borderRadius: 12,
+                height: 110, background: '#0A0E15', borderRadius: 12,
                 border: `2px solid ${throttle > 0.1 ? '#22C55E' : '#1E232E'}`,
                 position: 'relative', overflow: 'hidden', touchAction: 'none',
                 cursor: 'pointer',
@@ -556,17 +615,45 @@ export default function RemoteControllerPage() {
                 {Math.round(throttle * 100)}%
               </div>
             </div>
+
+            {/* Quick Cruise Presets */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 8 }}>
+              {[
+                { label: '30%', val: 0.3 },
+                { label: '60%', val: 0.6 },
+                { label: '100%', val: 1.0 },
+                { label: cruiseLock ? 'OFF' : 'CRUISE', val: cruiseLock ? 0 : 0.45 },
+              ].map(b => (
+                <button
+                  key={b.label}
+                  type="button"
+                  onClick={() => setPresetThrottle(b.val)}
+                  style={{
+                    padding: '4px 0', borderRadius: 6, fontSize: 9, fontWeight: 800,
+                    background: cruiseLock && b.label.includes('CRUISE') ? '#22C55E' : '#1A1E28',
+                    border: `1px solid ${cruiseLock && b.label.includes('CRUISE') ? '#22C55E' : '#2D3340'}`,
+                    color: cruiseLock && b.label.includes('CRUISE') ? '#000' : '#22C55E',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Brake */}
           <div style={{ background: '#111318', borderRadius: 16, border: '1px solid #1E232E', padding: 12 }}>
             <div style={{ fontSize: 10, color: '#EF4444', fontWeight: 700, marginBottom: 8, letterSpacing: '0.1em' }}>🛑 BRAKE</div>
             <div
-              onTouchStart={(e) => { e.preventDefault(); handlePedal('brake', e); }}
-              onTouchMove={(e) => { e.preventDefault(); handlePedal('brake', e); }}
+              onTouchStart={(e) => handlePedal('brake', e)}
+              onTouchMove={(e) => handlePedal('brake', e)}
               onTouchEnd={() => releasePedal('brake')}
+              onPointerDown={(e) => handlePedal('brake', e)}
+              onPointerMove={(e) => { if (e.buttons > 0) handlePedal('brake', e); }}
+              onPointerUp={() => releasePedal('brake')}
               style={{
-                height: 120, background: '#0A0E15', borderRadius: 12,
+                height: 110, background: '#0A0E15', borderRadius: 12,
                 border: `2px solid ${brake > 0.1 ? '#EF4444' : '#1E232E'}`,
                 position: 'relative', overflow: 'hidden', touchAction: 'none',
                 cursor: 'pointer',
@@ -586,6 +673,40 @@ export default function RemoteControllerPage() {
                 {Math.round(brake * 100)}%
               </div>
             </div>
+
+            {/* Quick Brake Presets */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setBrake(1.0);
+                  setThrottle(0);
+                  setCruiseLock(false);
+                  sendImmediateControl({ brake: 1.0, throttle: 0 });
+                }}
+                style={{
+                  padding: '4px 0', borderRadius: 6, fontSize: 9, fontWeight: 800,
+                  background: '#EF444422', border: '1px solid #EF4444', color: '#EF4444',
+                  cursor: 'pointer',
+                }}
+              >
+                🛑 HARD BRAKE
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBrake(0);
+                  sendImmediateControl({ brake: 0 });
+                }}
+                style={{
+                  padding: '4px 0', borderRadius: 6, fontSize: 9, fontWeight: 800,
+                  background: '#1A1E28', border: '1px solid #2D3340', color: '#9CA3AF',
+                  cursor: 'pointer',
+                }}
+              >
+                RELEASE
+              </button>
+            </div>
           </div>
         </div>
 
@@ -594,25 +715,33 @@ export default function RemoteControllerPage() {
           background: '#111318', borderRadius: 16,
           border: '1px solid #1E232E', padding: '12px 14px',
         }}>
-          <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 700, marginBottom: 10, letterSpacing: '0.1em' }}>
-            GEAR SELECTOR
+          <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, marginBottom: 10, letterSpacing: '0.1em' }}>
+            GEAR SELECTOR (P · R · N · D · S)
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {GEAR_MODES.map(g => (
-              <button
-                key={g}
-                onPointerDown={() => handleGear(g)}
-                style={{
-                  flex: 1, height: 52, borderRadius: 12,
-                  background: gear === g ? '#00D4FF22' : '#0A0E15',
-                  border: gear === g ? '2px solid #00D4FF' : '1px solid #1E232E',
-                  color: gear === g ? '#00D4FF' : '#6B7280',
-                  fontSize: 18, fontWeight: 800, cursor: 'pointer',
-                  boxShadow: gear === g ? '0 0 12px #00D4FF44' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >{g}</button>
-            ))}
+            {GEAR_MODES.map(g => {
+              const isActive = gear === g;
+              const activeColor = g === 'R' ? '#EF4444' : g === 'S' ? '#F59E0B' : g === 'P' ? '#10B981' : g === 'N' ? '#94A3B8' : '#00D4FF';
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => handleGear(g)}
+                  onTouchStart={(e) => { e.preventDefault(); handleGear(g); }}
+                  onPointerDown={() => handleGear(g)}
+                  style={{
+                    flex: 1, height: 52, borderRadius: 12,
+                    background: isActive ? `${activeColor}22` : '#0A0E15',
+                    border: isActive ? `2px solid ${activeColor}` : '1px solid #2D3340',
+                    color: isActive ? activeColor : '#9CA3AF',
+                    fontSize: 18, fontWeight: 800, cursor: 'pointer',
+                    boxShadow: isActive ? `0 0 14px ${activeColor}55` : 'none',
+                    transition: 'all 0.15s',
+                    touchAction: 'manipulation',
+                  }}
+                >{g}</button>
+              );
+            })}
           </div>
         </div>
 

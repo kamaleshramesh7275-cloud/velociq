@@ -23,21 +23,21 @@ export default function ThemeSwitcher({ compact = false }) {
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition shadow-xs select-none"
+        className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition shadow-xs select-none shrink-0 whitespace-nowrap cursor-pointer"
         title="Switch Automotive Color Theme"
       >
         {/* Active Theme Color Swatch Pill */}
-        <div className="flex items-center -space-x-1">
+        <div className="flex items-center -space-x-1 shrink-0">
           <span className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: theme.primary }} />
           <span className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: theme.secondary }} />
         </div>
         {!compact && (
-          <span className="font-mono text-xs font-bold text-slate-800 tracking-tight">
+          <span className="font-mono text-xs font-bold text-slate-800 tracking-tight hidden 2xl:inline">
             {theme.name}
           </span>
         )}
         <svg
-          className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 text-slate-500 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

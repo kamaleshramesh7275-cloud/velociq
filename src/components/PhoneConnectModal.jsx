@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { onStatusChange, initBridge } from '../services/telemetryBridge';
 
-// Resolve the local IP from window.location for display in QR
-function getLocalUrl(path = '/remote') {
-  return `${window.location.protocol}//${window.location.hostname}:${window.location.port}${path}`;
+// Resolve the real local IP for display in QR so phones on Wi-Fi connect directly
+function getLocalUrl(path = '/controller') {
+  const isLocal = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  const host = isLocal ? '192.168.113.33' : window.location.hostname;
+  const port = window.location.port ? `:${window.location.port}` : ':3000';
+  return `${window.location.protocol}//${host}${port}${path}`;
 }
 
 // Tiny QR code via Google Charts API (no npm package needed)
@@ -21,7 +24,7 @@ function QRCodeImg({ url, size = 180 }) {
 }
 
 export default function PhoneConnectModal({ onClose }) {
-  const url = getLocalUrl('/remote');
+  const url = getLocalUrl('/controller');
   const [conn, setConn] = useState({ status: 'disconnected', latency: 0 });
 
   useEffect(() => {

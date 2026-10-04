@@ -36,12 +36,13 @@ export default function Sidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isGarageOpen, setIsGarageOpen] = useState(false);
   const { activeVehicle, monitorVehicle, vehicles } = useFleet();
-  const { hasPermission, currentRole } = useAuth();
+  const { hasPermission, currentRole, activeRoleData, isRouteAllowed } = useAuth();
 
   const navGroups = [
     {
       group: 'DRIVE',
       items: [
+        { path: '/split-view', label: 'Dual Cockpit (3D + App)', Icon: DashboardIcon, badge: 'DUAL' },
         { path: '/world', label: '3D Twin City (Drive)', Icon: DigitalTwinIcon, badge: '3D LIVE' },
         { path: '/driver-portal', label: 'Driver Cockpit HUD', Icon: DashboardIcon, badge: 'HUD' },
         { path: '/dashboard', label: 'Live Telemetry', Icon: DashboardIcon },
@@ -76,14 +77,19 @@ export default function Sidebar({
 
   const currentProfile = activeVehicle?.profile || vehicleProfile || 'sedan';
 
-  const filteredNavGroups = navGroups;
+  const filteredNavGroups = navGroups
+    .map((grp) => ({
+      ...grp,
+      items: grp.items.filter((item) => isRouteAllowed(item.path)),
+    }))
+    .filter((grp) => grp.items.length > 0);
 
   const renderNavContent = (isMobile = false) => (
     <>
       {/* Grouped Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
         {/* Quick 3D Digital World Launch Card */}
-        {(!isCollapsed || isMobile) && (
+        {(!isCollapsed || isMobile) && isRouteAllowed('/world') && (
           <NavLink
             to="/world"
             onClick={isMobile ? onCloseMobile : undefined}
@@ -193,6 +199,34 @@ export default function Sidebar({
         </a>
       </div>
 
+      {/* Active Persona Privilege Badge */}
+      {(!isCollapsed || isMobile) && activeRoleData && (
+        <div className="px-3 pt-2 pb-1 border-t border-slate-200/80 bg-slate-50/50">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: activeRoleData.color }}
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="font-mono text-[8px] uppercase font-bold text-slate-500 tracking-wider">
+                  ROLE PRIVILEGE
+                </span>
+                <span className="font-display text-xs font-bold text-slate-900 truncate">
+                  {activeRoleData.label}
+                </span>
+              </div>
+            </div>
+            <span
+              className="px-1.5 py-0.5 rounded font-mono text-[8.5px] font-bold text-white uppercase shrink-0"
+              style={{ backgroundColor: activeRoleData.color }}
+            >
+              {activeRoleData.badge}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Active Vehicle Card at Bottom */}
       <div className="p-3 border-t border-line bg-slate-50/80">
         <button
@@ -201,7 +235,7 @@ export default function Sidebar({
           className={`w-full flex items-center gap-2.5 rounded-xl border border-line bg-white p-2.5 text-left hover:border-slate-400 hover:shadow-sm transition group ${
             isCollapsed && !isMobile ? 'justify-center p-1.5' : ''
           }`}
-          title="Switch Active Fleet Asset"
+          title="Connected Fleet Asset · Alpha Cruiser [NY-482-XA]"
         >
           <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 group-hover:border-blue-300">
             <CarSilhouette profile={currentProfile} view="side" className="w-8 h-4 text-[#0B3D91]" />

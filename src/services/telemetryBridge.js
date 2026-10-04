@@ -1,31 +1,28 @@
 /**
  * VelocIQ Telemetry Bridge
- * Dual-transport: BroadcastChannel (same-device <1ms) + WebSocket relay (phone over LAN)
- * Automatically selects the best available transport.
+ * Multi-transport:
+ * 1. Vite HMR WebSocket relay (phone over LAN / Wi-Fi)
+ * 2. BroadcastChannel (same-browser tabs <1ms)
+ * 3. LocalStorage events (cross-window fallback)
  */
 
 const CHANNEL_NAME = 'velociq_vehicle_control';
-const WS_RECONNECT_MS = 2000;
 
 let _channel = null;
-let _ws = null;
 let _listeners = [];
 let _feedbackListeners = [];
 let _connectionStatus = 'disconnected'; // 'disconnected' | 'broadcast' | 'websocket'
-let _wsReconnectTimer = null;
 let _latencyMs = 0;
-let _lastPingTime = 0;
 let _statusListeners = [];
-
-// ─── Internal helpers ─────────────────────────────────────────────────────────
+let _initialized = false;
 
 function _notifyListeners(packet) {
   _listeners.forEach(fn => { try { fn(packet); } catch (e) { /* noop */ } });
 }
 
-function _notifyStatus(status, latency) {
+function _notifyStatus(status, latency = 0) {
   _connectionStatus = status;
-  if (latency !== undefined) _latencyMs = latency;
+  _latencyMs = latency;
   _statusListeners.forEach(fn => { try { fn({ status, latency: _latencyMs }); } catch (e) { /* noop */ } });
 }
 
@@ -33,24 +30,24 @@ function _notifyFeedback(packet) {
   _feedbackListeners.forEach(fn => { try { fn(packet); } catch (e) { /* noop */ } });
 }
 
-// ─── BroadcastChannel (same-browser, desktop fallback) ────────────────────────
-
+// ─── BroadcastChannel (same-browser tabs) ──────────────────────────────────
 function _initBroadcastChannel() {
-  if (typeof BroadcastChannel === 'undefined') return;
-  _channel = new BroadcastChannel(CHANNEL_NAME);
-  _channel.onmessage = (event) => {
-    const { type, payload } = event.data || {};
-    if (type === 'CONTROL') _notifyListeners(payload);
-    if (type === 'FEEDBACK_REQUEST') _sendFeedbackViaBroadcast(event.data.feedback);
-    if (type === 'PING') {
-      // Send pong back
-      _channel.postMessage({ type: 'PONG', ts: event.data.ts });
-    }
-    if (type === 'PONG') {
-      _latencyMs = Math.round(Date.now() - event.data.ts);
-      _notifyStatus('broadcast', _latencyMs);
-    }
-  };
+  if (typeof BroadcastChannel === 'undefined' || _channel) return;
+  try {
+    _channel = new BroadcastChannel(CHANNEL_NAME);
+    _channel.onmessage = (event) => {
+      const { type, payload } = event.data || {};
+      if (type === 'CONTROL') _notifyListeners(payload);
+      if (type === 'FEEDBACK') _notifyFeedback(payload);
+      if (type === 'PING') {
+        _channel.postMessage({ type: 'PONG', ts: event.data.ts });
+      }
+      if (type === 'PONG') {
+        const lat = Math.round(Date.now() - event.data.ts);
+        _notifyStatus(_connectionStatus === 'websocket' ? 'websocket' : 'broadcast', lat);
+      }
+    };
+  } catch (_) {}
 }
 
 function _sendViaBroadcast(packet) {
@@ -63,123 +60,129 @@ function _sendViaBroadcast(packet) {
 
 function _sendFeedbackViaBroadcast(feedback) {
   if (!_channel) return;
-  _channel.postMessage({ type: 'FEEDBACK', payload: feedback });
-}
-
-function _pingBroadcast() {
-  if (!_channel) return;
-  _channel.postMessage({ type: 'PING', ts: Date.now() });
-}
-
-// ─── WebSocket (phone over LAN) ───────────────────────────────────────────────
-
-function _initWebSocket() {
-  if (typeof WebSocket === 'undefined') return;
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const wsUrl = `${proto}://${location.host}/ws/vehicle-control`;
-
   try {
-    _ws = new WebSocket(wsUrl);
-  } catch { return; }
-
-  _ws.onopen = () => {
-    _notifyStatus('websocket', 0);
-    // Start ping loop
-    _lastPingTime = Date.now();
-    _ws.send(JSON.stringify({ type: 'PING', ts: Date.now() }));
-  };
-
-  _ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'CONTROL') _notifyListeners(msg.payload);
-      if (msg.type === 'PONG') {
-        _latencyMs = Math.round(Date.now() - msg.ts);
-        _notifyStatus('websocket', _latencyMs);
-      }
-      if (msg.type === 'FEEDBACK') _notifyFeedback(msg.payload);
-    } catch { /* noop */ }
-  };
-
-  _ws.onclose = () => {
-    _ws = null;
-    _notifyStatus('disconnected', undefined);
-    // Retry connection
-    _wsReconnectTimer = setTimeout(_initWebSocket, WS_RECONNECT_MS);
-  };
-
-  _ws.onerror = () => {
-    _ws?.close();
-  };
-}
-
-function _sendViaWS(packet) {
-  if (!_ws || _ws.readyState !== WebSocket.OPEN) return false;
-  try {
-    _ws.send(JSON.stringify({ type: 'CONTROL', payload: packet }));
-    return true;
-  } catch { return false; }
-}
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Initialize the bridge. Call once from App.jsx / RemoteControllerPage.
- * @param {'controller' | 'vehicle'} role - 'controller' = phone side, 'vehicle' = desktop side
- */
-export function initBridge(role = 'vehicle') {
-  _initBroadcastChannel();
-  if (role === 'vehicle') {
-    _initWebSocket();
-    // Ping broadcast every 2s to measure latency
-    setInterval(_pingBroadcast, 2000);
-  }
-}
-
-/**
- * Send a control packet from phone -> desktop
- * @param {Object} packet - e.g. { throttle, brake, steer, gear, engineOn, driveMode, ... }
- */
-export function sendControl(packet) {
-  if (_sendViaWS(packet)) return;
-  if (_sendViaBroadcast(packet)) return;
-}
-
-/**
- * Send telemetry feedback from desktop -> phone (speed, RPM, etc.)
- */
-export function sendFeedback(feedback) {
-  if (_ws && _ws.readyState === WebSocket.OPEN) {
-    _ws.send(JSON.stringify({ type: 'FEEDBACK', payload: feedback }));
-    return;
-  }
-  if (_channel) {
     _channel.postMessage({ type: 'FEEDBACK', payload: feedback });
+  } catch (_) {}
+}
+
+let _prodWS = null;
+
+// ─── WebSocket Relay (Vite HMR in dev, native ws:// or wss:// in production) ──
+function _initViteRelay() {
+  if (typeof window === 'undefined') return;
+
+  if (import.meta.hot) {
+    _notifyStatus('websocket', 2);
+
+    import.meta.hot.on('velociq:control', (data) => {
+      _notifyListeners(data);
+      _notifyStatus('websocket', 2);
+    });
+
+    import.meta.hot.on('velociq:feedback', (data) => {
+      _notifyFeedback(data);
+      _notifyStatus('websocket', 2);
+    });
+  } else {
+    // Production Mode (Render / Docker / Node Server): Connect to backend /ws
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      _prodWS = new WebSocket(wsUrl);
+
+      _prodWS.onopen = () => {
+        _notifyStatus('websocket', 5);
+      };
+
+      _prodWS.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'CONTROL' || payload.event === 'velociq:control') {
+            _notifyListeners(payload.data || payload.payload);
+            _notifyStatus('websocket', 5);
+          } else if (payload.type === 'FEEDBACK' || payload.event === 'velociq:feedback') {
+            _notifyFeedback(payload.data || payload.payload);
+            _notifyStatus('websocket', 5);
+          }
+        } catch (_) {}
+      };
+
+      _prodWS.onclose = () => {
+        _prodWS = null;
+        if (_channel) _notifyStatus('broadcast', 1);
+        setTimeout(_initViteRelay, 3000);
+      };
+
+      _prodWS.onerror = () => {
+        if (_channel) _notifyStatus('broadcast', 1);
+      };
+    } catch (_) {
+      if (_channel) _notifyStatus('broadcast', 1);
+    }
   }
 }
 
-/**
- * Register a listener for incoming control packets (desktop side)
- */
+// ─── Public API ───────────────────────────────────────────────────────────
+
+export function initBridge(role = 'vehicle') {
+  if (_initialized) return;
+  _initialized = true;
+
+  _initBroadcastChannel();
+  _initViteRelay();
+
+  // Periodic keepalive / latency check
+  setInterval(() => {
+    if (_channel) {
+      try {
+        _channel.postMessage({ type: 'PING', ts: Date.now() });
+      } catch (_) {}
+    }
+  }, 2000);
+}
+
+export function sendControl(packet) {
+  let sentWS = false;
+  if (import.meta.hot) {
+    try {
+      import.meta.hot.send('velociq:control', packet);
+      sentWS = true;
+    } catch (_) {}
+  } else if (_prodWS && _prodWS.readyState === 1) { // 1 = OPEN
+    try {
+      _prodWS.send(JSON.stringify({ event: 'velociq:control', data: packet }));
+      sentWS = true;
+    } catch (_) {}
+  }
+  const sentBC = _sendViaBroadcast(packet);
+  return sentWS || sentBC;
+}
+
+export function sendFeedback(feedback) {
+  if (import.meta.hot) {
+    try {
+      import.meta.hot.send('velociq:feedback', feedback);
+    } catch (_) {}
+  } else if (_prodWS && _prodWS.readyState === 1) {
+    try {
+      _prodWS.send(JSON.stringify({ event: 'velociq:feedback', data: feedback }));
+    } catch (_) {}
+  }
+  _sendFeedbackViaBroadcast(feedback);
+}
+
 export function onControlPacket(fn) {
   _listeners.push(fn);
   return () => { _listeners = _listeners.filter(f => f !== fn); };
 }
 
-/**
- * Register a listener for feedback packets (phone side)
- */
 export function onFeedbackPacket(fn) {
   _feedbackListeners.push(fn);
   return () => { _feedbackListeners = _feedbackListeners.filter(f => f !== fn); };
 }
 
-/**
- * Register a listener for connection status changes
- */
 export function onStatusChange(fn) {
   _statusListeners.push(fn);
-  // Fire immediately with current state
   fn({ status: _connectionStatus, latency: _latencyMs });
   return () => { _statusListeners = _statusListeners.filter(f => f !== fn); };
 }
@@ -190,9 +193,9 @@ export function getStatus() {
 
 export function destroyBridge() {
   _channel?.close();
-  _ws?.close();
-  clearTimeout(_wsReconnectTimer);
+  _channel = null;
   _listeners = [];
   _feedbackListeners = [];
   _statusListeners = [];
+  _initialized = false;
 }

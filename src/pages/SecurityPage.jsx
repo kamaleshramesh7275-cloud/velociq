@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SimulationContext } from '../context/SimulationContext';
 import { useFleet } from '../context/FleetContext';
+import { useAuth } from '../context/AuthContext';
 import { Card, SectionLabel, Modal } from '../components/ui';
 import { PlateBadge } from '../components/ui/PlateBadge';
 import { WarningLight } from '../components/ui/WarningLight';
@@ -13,6 +14,8 @@ import {
 } from '../components/icons';
 
 export default function SecurityPage() {
+  const { hasPermission, activeRoleData } = useAuth();
+  const canImmobilize = hasPermission('canImmobilize');
   const { securityState, setSecurityState, isConnected } = React.useContext(SimulationContext);
   const { threatLevel, isGeofenceBreached, isImmobilized } = securityState;
   const { activeVehicle } = useFleet();
@@ -24,6 +27,7 @@ export default function SecurityPage() {
   const [modalAction, setModalAction] = useState('LOCK'); // 'LOCK' or 'UNLOCK'
 
   const handleToggleGuarded = () => {
+    if (!canImmobilize) return;
     setModalAction(isImmobilized ? 'UNLOCK' : 'LOCK');
     setTypedPlate('');
     setShowConfirmModal(true);
@@ -255,18 +259,29 @@ export default function SecurityPage() {
 
               {/* Slide-to-arm / Guarded Switch */}
               <div>
-                <button
-                  onClick={handleToggleGuarded}
-                  disabled={!isConnected && !isImmobilized}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition duration-200 flex items-center justify-center gap-2 shadow-sm ${
-                    isImmobilized
-                      ? 'bg-[#0F9D6B] hover:bg-[#0c8258] text-white shadow-emerald-500/20'
-                      : 'bg-[#D7263D] hover:bg-[#ba1e32] text-white shadow-rose-500/20'
-                  }`}
-                >
-                  <LockIcon className="w-4 h-4 text-white" />
-                  {isImmobilized ? 'Reactivate Powertrain' : 'Lock Engine & Immobilize'}
-                </button>
+                {canImmobilize ? (
+                  <button
+                    onClick={handleToggleGuarded}
+                    disabled={!isConnected && !isImmobilized}
+                    className={`w-full py-3 px-4 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition duration-200 flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
+                      isImmobilized
+                        ? 'bg-[#0F9D6B] hover:bg-[#0c8258] text-white shadow-emerald-500/20'
+                        : 'bg-[#D7263D] hover:bg-[#ba1e32] text-white shadow-rose-500/20'
+                    }`}
+                  >
+                    <LockIcon className="w-4 h-4 text-white" />
+                    {isImmobilized ? 'Reactivate Powertrain' : 'Lock Engine & Immobilize'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full py-3 px-4 rounded-xl text-xs font-mono font-bold uppercase tracking-wider border border-slate-300 bg-slate-100 text-slate-400 flex items-center justify-center gap-2 cursor-not-allowed shadow-2xs opacity-80"
+                    title={`Remote Immobilizer Locked: Fleet Administrator authority required. Active role: ${activeRoleData?.label}`}
+                  >
+                    <LockIcon className="w-4 h-4 text-slate-400" />
+                    <span>IMMOBILIZER LOCKED (ADMIN ONLY)</span>
+                  </button>
+                )}
                 <p className="text-[10px] font-mono text-center text-slate-700 font-semibold mt-2">
                   Protected by 2-Factor License Plate Confirmation
                 </p>

@@ -12,6 +12,7 @@ import { Drawer, CommandPalette, SeverityBadge, StatusPill, WarningLight, Racing
 import RoleSwitcher from './RoleSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function CommandBar({
   isConnected,
@@ -21,9 +22,12 @@ export default function CommandBar({
   activeDTCs = [],
   securityState,
   telemetry,
+  isPiPActive = false,
+  onTogglePiP,
   onToggleMobileMenu,
 }) {
   const { theme } = useTheme();
+  const { activeRoleData } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { activeVehicle, activeDriver } = useFleet();
@@ -32,6 +36,9 @@ export default function CommandBar({
 
   // Map route to breadcrumb label
   const breadcrumbMap = {
+    '/split-view': { section: 'DRIVE', page: 'DUAL COCKPIT (3D + APP)' },
+    '/dual-view': { section: 'DRIVE', page: 'DUAL COCKPIT (3D + APP)' },
+    '/world': { section: 'DRIVE', page: '3D TWIN CITY' },
     '/dashboard': { section: 'DRIVE', page: 'LIVE TELEMETRY' },
     '/navigation': { section: 'DRIVE', page: 'GPS EXPRESSWAY' },
     '/simulator': { section: 'DRIVE', page: 'WHAT-IF LAB' },
@@ -49,14 +56,14 @@ export default function CommandBar({
 
   return (
     <>
-      <header className="relative h-14 sm:h-16 border-b border-line bg-white px-3 sm:px-6 flex items-center justify-between z-20 shrink-0 select-none shadow-xs">
+      <header className="relative h-14 sm:h-16 border-b border-line bg-white px-3 sm:px-5 flex items-center justify-between z-30 shrink-0 select-none shadow-xs gap-2 sm:gap-4">
         {/* Mobile Hamburger & Breadcrumb & Global Search Button */}
-        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 overflow-hidden">
           {/* Mobile Menu Hamburger */}
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="md:hidden p-1.5 -ml-1 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition"
+            className="md:hidden p-1.5 -ml-1 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition shrink-0"
             title="Toggle Navigation Menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,30 +71,34 @@ export default function CommandBar({
             </svg>
           </button>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs min-w-0">
-            <span className="font-display font-black text-sm tracking-wider shrink-0" style={{ color: theme.secondary || theme.primary }}>
+          {/* Breadcrumb Navigation - Non-overlapping & Responsive */}
+          <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs shrink-0">
+            {/* Show VELOCIQ brand prefix only on mobile where persistent sidebar is hidden */}
+            <span className="font-display font-black text-sm tracking-wider shrink-0 md:hidden" style={{ color: theme.secondary || theme.primary }}>
               VELOCIQ
             </span>
-            <span className="text-slate-300 font-bold hidden sm:inline">/</span>
-            <span className="font-bold hidden sm:inline" style={{ color: theme.secondary || theme.primary }}>
+            <span className="text-slate-300 font-bold md:hidden">/</span>
+            <span className="font-bold hidden sm:inline shrink-0" style={{ color: theme.secondary || theme.primary }}>
               {currentCrumb.section}
             </span>
-            <span className="text-slate-300 font-bold">/</span>
-            <span className="text-slate-900 font-black tracking-wide truncate">
+            <span className="text-slate-300 font-bold hidden sm:inline shrink-0">/</span>
+            <span className="text-slate-900 font-black tracking-wide truncate max-w-[110px] sm:max-w-[150px] lg:max-w-none shrink-0">
               {currentCrumb.page}
             </span>
           </div>
 
+          {/* Desktop Search Command Palette Button (Single-line, non-wrapping, fixed responsive width) */}
           <button
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="hidden md:flex items-center gap-2.5 rounded-xl border border-slate-300 bg-bg-sunken px-3.5 py-1.5 font-mono text-xs text-slate-700 hover:text-slate-950 hover:border-slate-400 transition cursor-pointer"
+            className="hidden md:flex items-center gap-2 rounded-xl border border-slate-300 bg-bg-sunken px-3 py-1.5 font-mono text-xs text-slate-700 hover:text-slate-950 hover:border-slate-400 transition cursor-pointer w-36 lg:w-44 xl:w-56 shrink-0 whitespace-nowrap overflow-hidden"
+            title="Open Command Palette (Ctrl+K)"
           >
-            <svg className="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span className="font-medium text-slate-700">Search telematics or command...</span>
-            <kbd className="rounded border border-slate-400 bg-white px-1.5 py-0.2 text-[10px] text-slate-800 font-mono font-bold shadow-xs">
+            <span className="font-medium text-slate-600 truncate flex-1 text-left">Search or command...</span>
+            <kbd className="rounded border border-slate-400 bg-white px-1.5 py-0.2 text-[10px] text-slate-700 font-mono font-bold shadow-2xs shrink-0">
               Ctrl+K
             </kbd>
           </button>
@@ -96,7 +107,7 @@ export default function CommandBar({
           <button
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="md:hidden flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+            className="md:hidden flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition cursor-pointer shrink-0"
             title="Search telematics or command..."
             aria-label="Search"
           >
@@ -105,72 +116,114 @@ export default function CommandBar({
             </svg>
           </button>
 
-          {/* Quick Direct Link to 3D Digital World */}
-          <button
-            type="button"
-            onClick={() => navigate('/world')}
-            className="hidden lg:flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-3 py-1.5 font-mono text-xs text-cyan-800 font-bold hover:bg-cyan-500/20 hover:border-cyan-500 transition shadow-xs"
-            title="Open 3D Digital Twin City"
-          >
-            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-            <span>3D CITY WORLD</span>
-          </button>
-        </div>
-
-        {/* Status Indicators & Action Chips */}
-        <div className="flex items-center gap-3">
-          {/* Real-World Digital Twin Stream Pill */}
-          {telemetry?.isRealWorldLive && (Date.now() - (telemetry?.lastRealWorldUpdate || 0) < 4000) ? (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800 font-mono text-xs font-bold shadow-xs animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]" />
-              <span>REAL-WORLD 60Hz LIVE</span>
-            </div>
-          ) : (
-            <StatusPill
-              label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
-              status={isConnected ? 'active' : 'idle'}
-              pulse={isConnected}
-            />
+          {/* Quick Direct Link to Dual Cockpit (Split View: 3D + Dashboard) */}
+          {location.pathname !== '/split-view' && location.pathname !== '/dual-view' && (
+            <button
+              type="button"
+              onClick={() => navigate('/split-view')}
+              className="hidden 2xl:flex items-center gap-1.5 rounded-xl border border-cyan-500/50 bg-gradient-to-r from-cyan-500/15 via-blue-500/10 to-indigo-500/10 px-2.5 py-1.5 font-mono text-xs text-cyan-900 font-bold hover:bg-cyan-500/25 hover:border-cyan-600 transition shadow-xs whitespace-nowrap shrink-0"
+              title="Open Dual-Cockpit Split View (3D World + App Dashboard)"
+            >
+              <svg className="w-3.5 h-3.5 text-cyan-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              <span className="whitespace-nowrap">DUAL VIEW</span>
+            </button>
           )}
 
-          {/* SPIFFS Packet Queue */}
+          {/* Quick PiP Toggle Button */}
+          {location.pathname !== '/split-view' && location.pathname !== '/dual-view' && location.pathname !== '/world' && (
+            <button
+              type="button"
+              onClick={onTogglePiP}
+              className={`hidden xl:flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 font-mono text-xs font-bold transition shadow-xs whitespace-nowrap shrink-0 ${
+                isPiPActive
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400'
+              }`}
+              title="Toggle 3D Floating Picture-in-Picture window"
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isPiPActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span className="whitespace-nowrap">{isPiPActive ? 'PiP ACTIVE' : '3D PiP'}</span>
+            </button>
+          )}
+
+          {/* Quick Direct Link to 3D Digital World */}
+          {location.pathname !== '/world' && location.pathname !== '/split-view' && location.pathname !== '/dual-view' && (
+            <button
+              type="button"
+              onClick={() => navigate('/world')}
+              className="hidden 2xl:flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-2.5 py-1.5 font-mono text-xs text-cyan-800 font-bold hover:bg-cyan-500/20 hover:border-cyan-500 transition shadow-xs whitespace-nowrap shrink-0"
+              title="Open 3D Digital Twin City"
+            >
+              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse shrink-0" />
+              <span className="whitespace-nowrap">3D WORLD</span>
+            </button>
+          )}
+        </div>
+
+        {/* Status Indicators & Action Chips - Neatly organized & responsive */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Real-World Digital Twin Stream Pill */}
+          {telemetry?.isRealWorldLive && (Date.now() - (telemetry?.lastRealWorldUpdate || 0) < 4000) ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800 font-mono text-xs font-bold shadow-xs shrink-0 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981] shrink-0" />
+              <span className="hidden sm:inline">REAL-WORLD 60Hz</span>
+              <span className="sm:hidden">60Hz</span>
+            </div>
+          ) : (
+            <div className="shrink-0">
+              <StatusPill
+                label={isConnected ? 'BLE STREAM' : 'OFFLINE BUFFER'}
+                status={isConnected ? 'active' : 'idle'}
+                pulse={isConnected}
+              />
+            </div>
+          )}
+
+          {/* SPIFFS Packet Queue (Only visible during offline buffer) */}
           {!isConnected && spiffsCount > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-amber-300 bg-amber-50 font-mono text-xs font-semibold text-amber-800">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-amber-300 bg-amber-50 font-mono text-xs font-semibold text-amber-800 shrink-0 whitespace-nowrap">
               <span className="tabular-nums font-bold">{spiffsCount}</span> SPIFFS
             </span>
           )}
 
-          {/* Ambient Weather Chip */}
+          {/* Ambient Weather Chip (Visible on wide screens) */}
           {weather && (
-            <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-slate-300 bg-bg-sunken px-3 py-1 font-mono text-xs text-slate-800">
-              <ThermometerIcon className="w-3.5 h-3.5 text-[#0B3D91]" />
+            <div className="hidden 2xl:flex items-center gap-1.5 rounded-full border border-slate-300 bg-bg-sunken px-2.5 py-1 font-mono text-xs text-slate-800 shrink-0 whitespace-nowrap">
+              <ThermometerIcon className="w-3.5 h-3.5 text-[#0B3D91] shrink-0" />
               <span className="text-slate-900 font-bold tabular-nums">{weather.temperature}°C</span>
-              <span className="text-slate-600 font-medium text-[10px]">({weather.windspeed} km/h wind)</span>
+              <span className="text-slate-600 font-medium text-[10px]">({weather.windspeed} km/h)</span>
             </div>
           )}
 
-          {/* AI Agent Status Chip (Automotive Blue Chip) */}
-          <div className="flex items-center gap-1.5 rounded-full border border-[#0B3D91]/20 bg-[#0B3D91]/10 px-3 py-1 font-mono text-xs text-[#0B3D91]">
-            <svg className="w-3.5 h-3.5 text-[#0B3D91]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
-              <circle cx="9" cy="9" r="1.5" fill="currentColor" />
-              <circle cx="15" cy="9" r="1.5" fill="currentColor" />
-              <path d="M9 15h6" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span className="font-bold text-[11px]">AI AGENT</span>
-          </div>
-
           {/* Theme Color Switcher */}
-          <ThemeSwitcher />
+          <ThemeSwitcher compact />
 
           {/* Role Persona Switcher */}
           <RoleSwitcher compact />
+
+          {/* Active Role Privilege Scope Pill */}
+          {activeRoleData && (
+            <span
+              className="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-xl font-mono text-[9px] font-bold border shrink-0 uppercase select-none transition-all shadow-2xs"
+              style={{
+                backgroundColor: `${activeRoleData.color}10`,
+                color: activeRoleData.color,
+                borderColor: `${activeRoleData.color}35`,
+              }}
+              title={`Active Authority: ${activeRoleData.label} (${activeRoleData.scopeBadge})`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeRoleData.color }} />
+              <span className="truncate max-w-[95px] xl:max-w-none">{activeRoleData.scopeBadge}</span>
+            </span>
+          )}
 
           {/* Alert Notification Bell with Warning Light Icon Badge */}
           <button
             type="button"
             onClick={() => setIsAlertTrayOpen(true)}
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-text-lo hover:text-text-hi hover:bg-slate-50 transition"
+            className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-line bg-white text-text-lo hover:text-text-hi hover:bg-slate-50 transition shrink-0 cursor-pointer"
             title="Open Diagnostic Warnings"
           >
             <BellIcon className="w-4 h-4" />

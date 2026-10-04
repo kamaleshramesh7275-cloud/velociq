@@ -3,6 +3,7 @@ import { Card, SectionLabel, Toggle } from './ui';
 import { WrenchIcon, CheckCircleIcon } from './icons';
 import { useFleet } from '../context/FleetContext';
 import { getEngineType } from '../config/engineTypes';
+import { useAuth } from '../context/AuthContext';
 
 export default function MaintenanceTracker({ 
   partsWear = {}, 
@@ -12,6 +13,8 @@ export default function MaintenanceTracker({
   aiMechanicEnabled, 
   setAiMechanicEnabled
 }) {
+  const { hasPermission, activeRoleData } = useAuth();
+  const canService = hasPermission('canServiceVehicle');
   const fleet = useFleet ? useFleet() : null;
   const activeVehicle = fleet?.activeVehicle;
   const engineTypeId = activeVehicle?.engineTypeId || 'i4_petrol';
@@ -317,15 +320,29 @@ export default function MaintenanceTracker({
               </div>
 
               {/* Service Now Button */}
-              <button
-                type="button"
-                onClick={() => handleServiceClick(key)}
-                disabled={isServicing}
-                className="mt-2 w-full py-2 px-3 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition border border-[#DDE2EA] bg-white hover:bg-blue-50/50 hover:border-[#0B3D91] hover:text-[#0B3D91] text-[#334155] flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                <WrenchIcon className="w-3.5 h-3.5" />
-                {isServicing ? 'Refilling 100%...' : 'Service Now'}
-              </button>
+              {canService ? (
+                <button
+                  type="button"
+                  onClick={() => handleServiceClick(key)}
+                  disabled={isServicing}
+                  className="mt-2 w-full py-2 px-3 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition border border-[#DDE2EA] bg-white hover:bg-blue-50/50 hover:border-[#0B3D91] hover:text-[#0B3D91] text-[#334155] flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <WrenchIcon className="w-3.5 h-3.5" />
+                  {isServicing ? 'Refilling 100%...' : 'Service Now'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title={`Subsystem Service Locked: Lead Maintenance Tech or Administrator required. Active role: ${activeRoleData?.label}`}
+                  className="mt-2 w-full py-2 px-3 rounded-lg text-xs font-bold font-mono uppercase tracking-wider border border-slate-200 bg-slate-100 text-slate-400 flex items-center justify-center gap-1.5 cursor-not-allowed shadow-2xs opacity-80"
+                >
+                  <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span>Service Locked</span>
+                </button>
+              )}
             </div>
           );
         })}

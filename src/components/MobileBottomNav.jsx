@@ -12,14 +12,42 @@ import {
 } from './icons';
 
 export default function MobileBottomNav({ onOpenMenu, totalAlerts = 0 }) {
-  const { currentRole, hasPermission } = useAuth();
+  const { currentRole, activeRoleData } = useAuth();
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', Icon: DashboardIcon },
-    { path: '/navigation', label: 'Expressway', Icon: NavigationIcon },
-    { path: '/engine-twin', label: '3D Twin', Icon: EngineTwinIcon },
-    { path: '/fleet', label: 'Fleet', Icon: FleetIcon },
-  ];
+  const roleNavMap = {
+    driver: [
+      { path: '/driver-portal', label: 'HUD Cockpit', Icon: DashboardIcon },
+      { path: '/split-view', label: 'Dual 3D', Icon: DigitalTwinIcon },
+      { path: '/navigation', label: 'Route GPS', Icon: NavigationIcon },
+      { path: '/dashboard', label: 'Telemetry', Icon: DashboardIcon },
+    ],
+    mechanic: [
+      { path: '/engine-twin', label: '3D Engine', Icon: EngineTwinIcon },
+      { path: '/maintenance', label: 'Predictive', Icon: MaintenanceIcon },
+      { path: '/fleet', label: 'Fleet', Icon: FleetIcon },
+      { path: '/dashboard', label: 'Diagnostics', Icon: DashboardIcon },
+    ],
+    dispatcher: [
+      { path: '/navigation', label: 'Expressway', Icon: NavigationIcon },
+      { path: '/fleet', label: 'Fleet Map', Icon: FleetIcon },
+      { path: '/split-view', label: 'Dual View', Icon: DigitalTwinIcon },
+      { path: '/dashboard', label: 'Telemetry', Icon: DashboardIcon },
+    ],
+    safety_officer: [
+      { path: '/safety', label: 'Safety', Icon: SafetyIcon },
+      { path: '/analytics', label: 'Analytics', Icon: DashboardIcon },
+      { path: '/digital-twin', label: 'Living Twin', Icon: DigitalTwinIcon },
+      { path: '/dashboard', label: 'Telemetry', Icon: DashboardIcon },
+    ],
+    admin: [
+      { path: '/dashboard', label: 'Dashboard', Icon: DashboardIcon },
+      { path: '/navigation', label: 'Expressway', Icon: NavigationIcon },
+      { path: '/engine-twin', label: '3D Twin', Icon: EngineTwinIcon },
+      { path: '/fleet', label: 'Fleet', Icon: FleetIcon },
+    ],
+  };
+
+  const navItems = roleNavMap[currentRole] || roleNavMap.admin;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">

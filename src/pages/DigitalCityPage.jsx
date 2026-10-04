@@ -1,10 +1,12 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SimulationContext } from '../context/SimulationContext';
 import DigitalCityWorld from '../components/DigitalCityWorld';
 import PhoneConnectModal from '../components/PhoneConnectModal';
 import { onControlPacket, initBridge, onStatusChange } from '../services/telemetryBridge';
 
 export default function DigitalCityPage() {
+  const navigate = useNavigate();
   const sim = useContext(SimulationContext);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState({ status: 'disconnected', latency: 0 });
@@ -124,6 +126,21 @@ export default function DigitalCityPage() {
               {statusLabel}
             </span>
           </div>
+
+          {/* Split View Button */}
+          <button
+            onClick={() => navigate('/split-view')}
+            style={{
+              padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+              background: '#0B3D91', border: '1px solid #38BDF8',
+              color: '#FFFFFF', cursor: 'pointer', letterSpacing: '0.05em',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+            title="Open 3D World and Dashboard side-by-side"
+          >
+            <span>◫</span>
+            <span>SPLIT DASHBOARD</span>
+          </button>
 
           {/* Connect button */}
           <button

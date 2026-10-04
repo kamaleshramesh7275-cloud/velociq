@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../context/FleetContext';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -68,6 +69,8 @@ export default function FleetManager() {
     activeVehicleId,
     runObdPreTripScan
   } = useFleet();
+  const { hasPermission, activeRoleData } = useAuth();
+  const canAssignDriver = hasPermission('canAssignDriver');
   const navigate = useNavigate();
 
   // Status Filter state: 'ALL', 'Active', 'Idle', 'Maintenance'
@@ -296,9 +299,13 @@ export default function FleetManager() {
                     <div className="mt-3 pt-3 border-t border-line flex items-center justify-between gap-3">
                       <div className="flex-1 max-w-xs">
                         <select
-                          className="w-full rounded-xl border border-line bg-slate-50 px-2.5 py-1.5 text-xs text-text-hi font-mono focus:border-[#0B3D91] outline-none cursor-pointer"
+                          disabled={!canAssignDriver}
+                          className={`w-full rounded-xl border border-line px-2.5 py-1.5 text-xs text-text-hi font-mono focus:border-[#0B3D91] outline-none ${
+                            canAssignDriver ? 'bg-slate-50 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-80'
+                          }`}
                           value={driverId || ''}
                           onClick={(e) => e.stopPropagation()}
+                          title={canAssignDriver ? 'Assign active driver to asset' : `Driver Assignment Locked: Dispatcher or Admin role required. Active persona: ${activeRoleData?.label}`}
                           onChange={(e) => {
                             if (e.target.value) {
                               assignDriver(v.id, e.target.value);

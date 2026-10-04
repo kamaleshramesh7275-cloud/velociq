@@ -323,35 +323,35 @@ export default function SimulatorPage({ telemetry }) {
               </div>
             </div>
 
-            {/* Vehicle Profile Selection Cards with SVG Silhouettes */}
+            {/* Dedicated Vehicle Aerodynamic Profile (Single Real Vehicle) */}
             <div className="space-y-2 pt-2 border-t border-line">
-              <label className="font-display text-xs uppercase font-bold tracking-wider text-text-lo block">
-                VEHICLE AERODYNAMIC PROFILE
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'sedan', label: 'Sedan', cd: '0.28' },
-                  { id: 'suv', label: 'SUV', cd: '0.36' },
-                  { id: 'hatchback', label: 'Hatchback', cd: '0.31' },
-                  { id: 'truck', label: 'Truck', cd: '0.45' },
-                ].map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setVehicleProfile(v.id)}
-                    className={`flex flex-col items-center p-2.5 rounded-xl border text-center transition ${
-                      vehicleProfile === v.id
-                        ? 'border-[#0B3D91] bg-blue-50/80 shadow-xs'
-                        : 'border-line bg-bg-sunken/40 hover:bg-slate-100'
-                    }`}
-                  >
-                    <CarSilhouette profile={v.id} view="side" className="w-12 h-5 text-[#0B3D91]" />
-                    <span className="font-display text-xs font-bold text-text-hi mt-1">
-                      {v.label}
+              <div className="flex items-center justify-between">
+                <label className="font-display text-xs uppercase font-bold tracking-wider text-text-lo block">
+                  VEHICLE AERODYNAMIC PROFILE
+                </label>
+                <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  CONNECTED ASSET
+                </span>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-[#0B3D91] bg-gradient-to-br from-blue-50/90 to-white shadow-xs">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100/70 border border-blue-200">
+                  <CarSilhouette profile={liveProfile} view="side" className="w-9 h-5 text-[#0B3D91]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-xs font-bold text-slate-900 truncate">
+                      {activeVehicle?.name || 'Alpha Cruiser'}
                     </span>
-                    <span className="font-mono text-[9px] text-text-lo">Cd = {v.cd}</span>
-                  </button>
-                ))}
+                    <PlateBadge plate={activeVehicle?.licensePlate || 'NY-482-XA'} size="xs" />
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 font-mono text-[10px] text-slate-600">
+                    <span className="font-semibold">{activeVehicle?.type || 'Sports Sedan'}</span>
+                    <span className="text-slate-300">·</span>
+                    <span className="font-bold text-[#0B3D91]">Cd = {profile.dragCoefficient || 0.28}</span>
+                    <span className="text-slate-300">·</span>
+                    <span>Area: {profile.frontalAreaM2 || 2.2} m²</span>
+                  </div>
+                </div>
               </div>
             </div>
 

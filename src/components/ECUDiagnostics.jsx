@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, SectionLabel, SeverityBadge, WarningLight } from './ui';
 import { CheckCircleIcon, RefreshIcon } from './icons';
+import { useAuth } from '../context/AuthContext';
 
 const dtcLookup = {
   P0300: { name: 'Random/Multiple Misfire', desc: 'Random cylinder misfire detected in Bank 1. Rough idle & catalytic stress.', severity: 'HIGH', icon: 'engine' },
@@ -9,6 +10,9 @@ const dtcLookup = {
 };
 
 export default function ECUDiagnostics({ activeDTCs = [], onClearDTCs, onTriggerDTC }) {
+  const { hasPermission, activeRoleData } = useAuth();
+  const canClearDTC = hasPermission('canClearDTC');
+  const canInjectFault = hasPermission('canInjectFault');
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
 
@@ -152,22 +156,48 @@ export default function ECUDiagnostics({ activeDTCs = [], onClearDTCs, onTrigger
             <span>{isScanning ? `SCANNING (${scanProgress}%)` : 'POLL CAN BUS'}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onTriggerDTC}
-            className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white font-mono text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-          >
-            INJECT FAULT
-          </button>
-
-          {activeDTCs.length > 0 && (
+          {canInjectFault ? (
             <button
               type="button"
-              onClick={onClearDTCs}
-              className="ml-auto px-3.5 py-1.5 rounded-xl border border-rose-300 bg-rose-50 font-mono text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
+              onClick={onTriggerDTC}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white font-mono text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             >
-              CLEAR DTC CODES
+              INJECT FAULT
             </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={`Fault Injection Locked: Requires Lead Mechanic or Administrator. Active persona: ${activeRoleData?.label}`}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-100 font-mono text-xs font-bold text-slate-400 flex items-center gap-1.5 cursor-not-allowed shadow-2xs opacity-80"
+            >
+              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>INJECT FAULT (LOCKED)</span>
+            </button>
+          )}
+
+          {activeDTCs.length > 0 && (
+            canClearDTC ? (
+              <button
+                type="button"
+                onClick={onClearDTCs}
+                className="ml-auto px-3.5 py-1.5 rounded-xl border border-rose-300 bg-rose-50 font-mono text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs cursor-pointer"
+              >
+                CLEAR DTC CODES
+              </button>
+            ) : (
+              <div
+                className="ml-auto px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-100 font-mono text-xs font-bold text-slate-500 shadow-2xs flex items-center gap-1.5 cursor-not-allowed"
+                title={`Clear DTC Locked: Requires Lead Mechanic or Administrator role. Active persona: ${activeRoleData?.label}`}
+              >
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>CLEAR DTC (LOCKED)</span>
+              </div>
+            )
           )}
         </div>
 

@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function RoleSwitcher({ compact = false }) {
   const { currentRole, activeRoleData, ROLES, setRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -22,7 +25,7 @@ export default function RoleSwitcher({ compact = false }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs transition px-2.5 py-1.5 ${
+        className={`flex items-center gap-1.5 sm:gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs transition px-2 sm:px-2.5 py-1.5 shrink-0 whitespace-nowrap cursor-pointer ${
           compact ? 'text-xs' : 'text-xs sm:text-sm'
         }`}
         title="Switch User Role / Persona"
@@ -32,21 +35,21 @@ export default function RoleSwitcher({ compact = false }) {
           style={{ backgroundColor: activeRoleData.color }}
         />
         <div className="flex flex-col items-start min-w-0">
-          <span className="font-mono text-[9px] uppercase font-bold text-slate-700 tracking-wider">
+          <span className="font-mono text-[8.5px] uppercase font-bold text-slate-600 tracking-wider leading-tight">
             ROLE:
           </span>
-          <span className="font-display font-bold text-slate-900 truncate leading-none">
+          <span className="font-display font-bold text-slate-900 truncate leading-none max-w-[65px] sm:max-w-[85px]">
             {activeRoleData.label}
           </span>
         </div>
         <span
-          className="rounded px-1.5 py-0.5 font-mono text-[9px] font-bold text-white shrink-0 ml-1"
+          className="rounded px-1.5 py-0.5 font-mono text-[9px] font-bold text-white shrink-0 hidden sm:inline"
           style={{ backgroundColor: activeRoleData.color }}
         >
           {activeRoleData.badge}
         </span>
         <svg
-          className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 text-slate-500 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -77,6 +80,10 @@ export default function RoleSwitcher({ compact = false }) {
                   onClick={() => {
                     setRole(role.id);
                     setIsOpen(false);
+                    const currentNormalized = location.pathname === '/dual-view' ? '/split-view' : location.pathname;
+                    if (!role.allowedRoutes.includes(currentNormalized)) {
+                      navigate(role.primaryRoute || '/dashboard');
+                    }
                   }}
                   className={`w-full text-left p-2.5 rounded-xl transition flex items-start gap-2.5 ${
                     isSelected

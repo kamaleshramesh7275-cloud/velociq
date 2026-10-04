@@ -34,9 +34,9 @@ export default function EngineTwinPage({
   onClearDTCs, 
   activeDTCs: fleetDTCs = []
 }) {
-  // Engine Control States
-  const [rpm, setRpm] = useState(2400);
-  const [throttlePct, setThrottlePct] = useState(25);
+  // Engine Control States (Mirrored from Real-World Vehicle Telemetry)
+  const [rpm, setRpm] = useState(fleetTelemetry?.rpm || 850);
+  const [throttlePct, setThrottlePct] = useState(Math.round((fleetTelemetry?.throttle || 0) * 100));
   const [visualMode, setVisualMode] = useState(VISUAL_MODES.CAD || 'CAD');
   const [explodedFactor, setExplodedFactor] = useState(0.0);
   const [activeScenario, setActiveScenario] = useState('NOMINAL');
@@ -45,19 +45,6 @@ export default function EngineTwinPage({
 
   // Loading state for Three.js initialization
   const [isCanvasReady, setIsCanvasReady] = useState(false);
-
-  // Engine Technical Specifications (Unified Master Powertrain)
-  const engineSpecs = {
-    label: '2.0L Inline-4 DOHC 16V Twin-Cam Turbo',
-    shortLabel: '2.0L I4 Turbo',
-    displacement: '1998 cc',
-    compression: '10.2:1',
-    redlineRpm: 6800,
-    idleRpm: 900,
-    peakPower: '248 HP @ 5500 RPM',
-    peakTorque: '350 Nm @ 1800-4500 RPM',
-    firingOrder: '1-3-4-2',
-  };
 
   // Dyno State & Deep Diagnostics Drawer
   const [activeTab, setActiveTab] = useState('workspace'); // 'workspace', 'dyno', 'oscilloscope'
@@ -80,6 +67,31 @@ export default function EngineTwinPage({
   // Time ticker ref
   const timeRef = useRef(0);
   const prevThermalRef = useRef(null);
+
+  // Engine Technical Specifications (Unified Master Powertrain)
+  const engineSpecs = {
+    label: '2.0L Inline-4 DOHC 16V Twin-Cam Turbo',
+    shortLabel: '2.0L I4 Turbo',
+    displacement: '1998 cc',
+    compression: '10.2:1',
+    redlineRpm: 6800,
+    idleRpm: 900,
+    peakPower: '248 HP @ 5500 RPM',
+    peakTorque: '350 Nm @ 1800-4500 RPM',
+    firingOrder: '1-3-4-2',
+  };
+
+  // Continuously sync with real-world physics engine unless running dyno sweep
+  useEffect(() => {
+    if (fleetTelemetry && !isDynoRunning) {
+      if (fleetTelemetry.rpm !== undefined) {
+        setRpm(fleetTelemetry.rpm);
+      }
+      if (fleetTelemetry.throttle !== undefined) {
+        setThrottlePct(Math.round(fleetTelemetry.throttle * 100));
+      }
+    }
+  }, [fleetTelemetry?.rpm, fleetTelemetry?.throttle, isDynoRunning]);
 
   // Simulate initial load sequence for wireframe silhouette
   useEffect(() => {
