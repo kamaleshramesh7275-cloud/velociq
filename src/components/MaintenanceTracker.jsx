@@ -77,7 +77,7 @@ export default function MaintenanceTracker({
             {fillPercent}%
           </span>
           <span className="text-[9px] font-mono uppercase text-slate-700 font-bold">
-            {isBev ? 'Gearbox Lvl' : 'Dipstick Lvl'}
+            Dipstick Lvl
           </span>
         </div>
       </div>

@@ -24,7 +24,7 @@ const createPoiMarkerIcon = (type) => {
   return L.divIcon({
     className: 'custom-poi-marker',
     html: `
-      <div class="relative flex items-center justify-center w-7 h-7 -ml-3.5 -mt-3.5">
+      <div class="relative flex items-center justify-center w-7 h-7">
         <div class="w-6 h-6 rounded-full bg-slate-900 border ${isGas ? 'border-amber-400 text-amber-300' : 'border-emerald-400 text-emerald-300'} flex items-center justify-center shadow-md">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
             ${isGas 
@@ -42,18 +42,55 @@ const createPoiMarkerIcon = (type) => {
 const gasIcon = createPoiMarkerIcon('gas');
 const evIcon = createPoiMarkerIcon('ev');
 
-// Custom Directional Vehicle Glyph with dynamic rotation and top-view car SVG
+// Custom Directional Vehicle Glyph with dynamic rotation and authentic top-view car SVG
 const createVehicleMarkerIcon = (headingDeg = 0) => {
   return L.divIcon({
     className: 'custom-vehicle-marker',
     html: `
-      <div style="transform: rotate(${headingDeg}deg); transition: transform 0.4s ease-out;" class="relative flex items-center justify-center w-12 h-12 -ml-6 -mt-6">
-        <div class="absolute inset-0 rounded-full bg-[#1E88E5]/25 animate-ping"></div>
-        <div class="relative w-9 h-9 rounded-full bg-white border-2 border-[#0B3D91] shadow-md flex items-center justify-center">
-          <svg class="w-5 h-5 text-[#0B3D91]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-          </svg>
-        </div>
+      <div style="transform: rotate(${headingDeg}deg); transform-origin: 24px 24px; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);" class="relative w-12 h-12 flex items-center justify-center pointer-events-none select-none">
+        <!-- Live GPS Radar Ring Pulse centered at anchor (24, 24) -->
+        <div class="absolute inset-1.5 rounded-full bg-[#0284C7]/20 animate-ping"></div>
+
+        <!-- High-Contrast Directional Autonomous Vehicle Marker -->
+        <svg class="w-12 h-12 drop-shadow-lg overflow-visible" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Forward Navigation Arrow / Radar Cone (Points straight up along vector) -->
+          <polygon points="24,2 15,14 33,14" fill="#0284C7" fill-opacity="0.22" />
+          <path d="M24 3 L19.5 10 H28.5 Z" fill="#0284C7" />
+
+          <!-- Tires / Wheels (Top-down view) -->
+          <rect x="11" y="14" width="3.2" height="7.5" rx="1.5" fill="#0F172A" />
+          <rect x="33.8" y="14" width="3.2" height="7.5" rx="1.5" fill="#0F172A" />
+          <rect x="11" y="27" width="3.2" height="7.5" rx="1.5" fill="#0F172A" />
+          <rect x="33.8" y="27" width="3.2" height="7.5" rx="1.5" fill="#0F172A" />
+
+          <!-- Aerodynamic Top-Down Car Silhouette Chassis -->
+          <!-- Nose at (24, 8), tapered front, aero waist, broad rear (24, 38) -->
+          <path d="M24 8 C19.5 8, 14.5 11, 14.5 15.5 L14 24 L13.5 33 C13.5 37, 16.5 38.5, 24 38.5 C31.5 38.5, 34.5 37, 34.5 33 L34 24 L33.5 15.5 C33.5 11, 28.5 8, 24 8 Z" 
+                fill="#FFFFFF" 
+                stroke="#0B3D91" 
+                stroke-width="1.8" 
+                stroke-linejoin="round" />
+
+          <!-- Front Windshield -->
+          <path d="M16.5 17.5 C16.5 16, 24 15, 24 15 C24 15, 31.5 16, 31.5 17.5 L30.5 21.5 C30.5 21.5, 24 21, 24 21 C24 21, 17.5 21.5, 17.5 21.5 Z" 
+                fill="#0F172A" />
+
+          <!-- Tinted Panoramic Glass Cockpit -->
+          <rect x="17.5" y="22" width="13" height="6.5" rx="1" fill="#1E293B" />
+
+          <!-- Rear Windshield Glass -->
+          <path d="M18.5 29.5 H29.5 L28.5 32.5 H19.5 Z" fill="#0F172A" />
+
+          <!-- Center Aero Racing Stripe -->
+          <line x1="24" y1="9" x2="24" y2="37" stroke="#0B3D91" stroke-width="0.9" stroke-dasharray="2 1" opacity="0.65" />
+
+          <!-- LED Projector Headlights (Pointing forward / Upward) -->
+          <circle cx="17.5" cy="10" r="1.5" fill="#38BDF8" />
+          <circle cx="30.5" cy="10" r="1.5" fill="#38BDF8" />
+
+          <!-- Taillight Lightbar (Rear / Downward) -->
+          <path d="M16" y="37.5" d="M16 37.5 H32" stroke="#EF4444" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
       </div>
     `,
     iconSize: [48, 48],
@@ -175,20 +212,21 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
   });
 
   const [showKeyModal, setShowKeyModal] = useState(false);
-  const [roadCoordinates, setRoadCoordinates] = useState(DEFAULT_ROAD_COORDINATES);
+  // Synchronized expressway road coordinates ensuring 100% geometry parity with the physics telemetry engine
+  const roadCoordinates = DEFAULT_ROAD_COORDINATES;
 
-  // Fetch real road route geometry from OSRM on load
-  useEffect(() => {
-    let isMounted = true;
-    const loadRoute = async () => {
-      const res = await fetchLiveOsrmRoute([28.6315, 77.2167], [28.5562, 77.1000]);
-      if (isMounted && res.coordinates && res.coordinates.length > 5) {
-        setRoadCoordinates(res.coordinates);
-      }
-    };
-    loadRoute();
-    return () => { isMounted = false; };
-  }, []);
+  // Real-time road positioning and segment heading calculation
+  const currentPos = useMemo(() => {
+    return interpolateRoadPosition(roadCoordinates, safeProgress);
+  }, [roadCoordinates, safeProgress]);
+
+  // Derive exact heading: prefer live vehicle heading, fallback to current road segment tangent
+  const activeHeading = useMemo(() => {
+    if (typeof heading === 'number' && heading !== 0) {
+      return heading;
+    }
+    return currentPos.heading || 237;
+  }, [heading, currentPos.heading]);
 
   // Filter POIs within 2.5km of active vehicle location
   const visiblePOIs = useMemo(() => {
@@ -237,7 +275,7 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
     ? selectedTileConfig.url.replace('{key}', tomtomApiKey)
     : selectedTileConfig.url;
 
-  const vehicleMarkerIcon = useMemo(() => createVehicleMarkerIcon(heading), [heading]);
+  const vehicleMarkerIcon = useMemo(() => createVehicleMarkerIcon(activeHeading), [activeHeading]);
 
   return (
     <section className="rounded-2xl border border-line bg-white p-5 shadow-sm flex flex-col min-h-[580px]">
@@ -404,7 +442,7 @@ export default function RouteTracker({ route, speed, aiNavigatorEnabled, weather
                 <div className="font-sans text-xs p-1">
                   <div className="font-bold text-slate-900">Fleet Transport Unit #01</div>
                   <div className="text-[#0B3D91] font-mono font-semibold mt-1">Velocity: {safeSpeed.toFixed(1)} km/h</div>
-                  <div className="text-slate-600 font-mono text-[10px]">Bearing: {heading}° Azimuth</div>
+                  <div className="text-slate-600 font-mono text-[10px]">Bearing: {activeHeading}° Azimuth</div>
                   <div className="text-[#0F9D6B] font-bold mt-1">Route Progress: {Math.round(safeProgress)}%</div>
                 </div>
               </Popup>

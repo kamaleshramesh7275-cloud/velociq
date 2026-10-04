@@ -117,11 +117,12 @@ export function WarningLight({
     }
   };
 
+  const Component = onClick ? 'button' : 'div';
+
   return (
-    <button
-      type="button"
+    <Component
+      type={onClick ? 'button' : undefined}
       onClick={onClick}
-      disabled={!onClick}
       className={`relative inline-flex flex-col items-center justify-center p-1.5 rounded-lg transition-all ${
         active ? c.glowBg : 'bg-transparent'
       } ${onClick ? 'cursor-pointer hover:bg-slate-100' : 'cursor-default'} ${className}`}
@@ -135,6 +136,6 @@ export function WarningLight({
           {label || type}
         </span>
       )}
-    </button>
+    </Component>
   );
 }

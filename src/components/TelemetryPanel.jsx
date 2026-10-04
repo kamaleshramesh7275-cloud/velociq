@@ -224,7 +224,7 @@ export default function TelemetryPanel({
               value={rpm}
               min={0}
               max={tachMax}
-              label={isBev ? "ROTOR SPEED" : "TACHOMETER"}
+              label="TACHOMETER"
               unit="rpm"
               majorStep={majorStep}
               minorStep={minorStep}

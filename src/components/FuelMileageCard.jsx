@@ -13,7 +13,7 @@ export default function FuelMileageCard({ telemetry = {} }) {
 
   const mileageUnit = engineType?.mileageUnit || 'km/L';
 
-  const { speed = 0, maf = 9.4, fuel = 40.1, tripMileage = 0.0, co2 = 0.0 } = telemetry;
+  const { speed = 0, maf = 9.4, fuel = 40.1, tripMileage = 0.0, co2 = 0.0 } = telemetry || {};
 
   // Real-world physical conversion:
   // Fuel rate (L/h) ~ MAF (g/s) * 3600 / (14.7 * 740 g/L) ~ MAF * 0.33 L/h
@@ -202,12 +202,12 @@ export default function FuelMileageCard({ telemetry = {} }) {
         <div>
           <span className="font-display text-[10px] uppercase font-bold text-slate-500 block">CARBON FOOTPRINT</span>
           <span className="text-[11px] text-slate-600 font-medium">
-            {isBev ? 'Zero Tailpipe Emissions' : `${(engineType.co2Factor || 2.31).toFixed(2)} kg CO₂ / ${engineType.mileageUnit?.split('/')[1] || 'L'}`}
+            {isBev ? 'Zero Tailpipe Emissions' : `${(engineType?.co2Factor || 2.31).toFixed(2)} kg CO₂ / ${engineType?.mileageUnit?.split('/')[1] || 'L'}`}
           </span>
         </div>
         <div className="text-right">
           <span className="font-mono text-base font-bold text-[#0B3D91] tabular-nums">
-            {isBev ? '0.000' : co2.toFixed(3)}
+            {co2.toFixed(3)}
           </span>
           <span className="text-slate-600 font-semibold ml-1">kg</span>
           {isBev && (

@@ -25,9 +25,13 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div
         className={`w-full ${maxWidth} rounded-2xl bg-white border border-slate-300 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 ${className}`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Racing Stripe Accent */}
         <div className="relative border-b border-line bg-slate-50/70 p-4 sm:p-5 flex items-center justify-between">
@@ -39,7 +43,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-text-lo hover:text-text-hi hover:bg-slate-100 transition"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-text-lo hover:text-text-hi hover:bg-slate-100 transition cursor-pointer"
           >
             <CloseIcon className="w-4 h-4" />
           </button>
@@ -62,12 +66,24 @@ export function Drawer({
   children,
   width = 'max-w-md',
 }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div
         className={`h-full w-full ${width} bg-white border-l border-line shadow-2xl flex flex-col animate-in slide-in-from-right duration-200`}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="relative p-4 border-b border-line flex items-center justify-between bg-slate-50">
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue to-brand-red" />
@@ -75,7 +91,7 @@ export function Drawer({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-line text-text-lo hover:text-text-hi hover:bg-slate-100 transition"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-line text-text-lo hover:text-text-hi hover:bg-slate-100 transition cursor-pointer"
           >
             <CloseIcon className="w-4 h-4" />
           </button>
@@ -132,11 +148,29 @@ export function CommandPalette({ isOpen, onClose, onNavigate }) {
     ? commands
     : commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase()) || c.category.toLowerCase().includes(query.toLowerCase()));
 
+  const handleClose = () => {
+    setQuery('');
+    onClose?.(false);
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery('');
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        onClose ? onClose(!isOpen) : null;
+        if (isOpen) {
+          handleClose();
+        } else {
+          onClose?.(true);
+        }
+      } else if (e.key === 'Escape' && isOpen) {
+        e.preventDefault();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -146,8 +180,14 @@ export function CommandPalette({ isOpen, onClose, onNavigate }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-100">
-      <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-300 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-100"
+      onClick={handleClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-2xl bg-white border border-slate-300 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="relative border-b border-line p-3 flex items-center gap-3 bg-slate-50">
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue via-brand-blue to-brand-red" />
           <svg className="w-5 h-5 text-slate-600 shrink-0 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -158,12 +198,29 @@ export function CommandPalette({ isOpen, onClose, onNavigate }) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClose();
+              } else if (e.key === 'Enter' && filtered.length > 0) {
+                e.preventDefault();
+                onNavigate?.(filtered[0].path);
+                handleClose();
+              }
+            }}
             placeholder="Type a command or route... (e.g. Simulator, Twin, Fleet)"
             className="w-full bg-transparent font-sans text-sm text-[#0F172A] placeholder:text-slate-500 focus:outline-none font-medium"
           />
-          <kbd className="rounded border border-slate-300 bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700 shadow-xs">
+          <button
+            type="button"
+            onClick={handleClose}
+            title="Press ESC or click to close search"
+            aria-label="Close search"
+            className="flex items-center justify-center rounded border border-slate-300 bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700 shadow-xs hover:bg-slate-100 hover:text-slate-950 hover:border-slate-400 active:scale-95 transition cursor-pointer select-none"
+          >
             ESC
-          </kbd>
+          </button>
         </div>
 
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
@@ -178,9 +235,9 @@ export function CommandPalette({ isOpen, onClose, onNavigate }) {
                 type="button"
                 onClick={() => {
                   onNavigate?.(item.path);
-                  onClose?.(false);
+                  handleClose();
                 }}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 text-left transition group"
+                className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 text-left transition group cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-xs font-semibold text-slate-900 group-hover:text-brand-blue">

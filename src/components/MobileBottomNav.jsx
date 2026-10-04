@@ -14,18 +14,12 @@ import {
 export default function MobileBottomNav({ onOpenMenu, totalAlerts = 0 }) {
   const { currentRole, hasPermission } = useAuth();
 
-  const allPossibleItems = [
-    ...(currentRole === 'driver' ? [{ path: '/driver-portal', label: 'Driver HUD', Icon: DashboardIcon }] : []),
+  const navItems = [
     { path: '/dashboard', label: 'Dashboard', Icon: DashboardIcon },
     { path: '/navigation', label: 'Expressway', Icon: NavigationIcon },
-    { path: '/fleet', label: 'Fleet', Icon: FleetIcon },
     { path: '/engine-twin', label: '3D Twin', Icon: EngineTwinIcon },
-    { path: '/digital-twin', label: 'AI Optimizer', Icon: DigitalTwinIcon },
-    { path: '/maintenance', label: 'Predictive', Icon: MaintenanceIcon },
-    { path: '/safety', label: 'Safety', Icon: SafetyIcon },
+    { path: '/fleet', label: 'Fleet', Icon: FleetIcon },
   ];
-
-  const navItems = allPossibleItems.filter(item => hasPermission(item.path)).slice(0, 4);
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
